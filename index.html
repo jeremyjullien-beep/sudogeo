@@ -826,7 +826,7 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
 <div class="cl-overlay" id="cl-overlay" onclick="if(event.target===this)closeCl()">
   <div class="cl-panel" id="cl-panel"></div>
 </div>
-<button class="btn-changelog" onclick="openCl()">v1.4 — changelog</button>
+<button class="btn-changelog" onclick="openCl()">v1.5 — changelog</button>
 
 <div class="zoo-overlay" id="zoo-overlay" onclick="if(event.target===this)closeZoo()">
   <div class="zoo-panel">
@@ -1260,9 +1260,29 @@ function tryAddDiabDiag(puzzle, usedGroups) {
   return puzzle;
 }
 
+function tryAddDiabDiag2(puzzle, usedGroups) {
+  for (const r of shuffle(DIAB_RULES)) {
+    if (usedGroups.has(r.g)) continue;
+    const newCounts = [...puzzle.counts];
+    let ok = true;
+    for (const idx of [2, 4, 6]) {
+      const row = Math.floor(idx/3), col = idx%3;
+      // La case 4 est sur les deux diagonales : passer diagRule ET le nouveau r
+      const dr1 = (idx === 4) ? puzzle.diagRule : null;
+      const n = cellCandidates(puzzle.rowRules[row], puzzle.colRules[col], dr1, r).length;
+      if (n < 2) { ok = false; break; }
+      newCounts[idx] = n;
+    }
+    if (!ok) continue;
+    if (countSolutions(puzzle.rowRules, puzzle.colRules, puzzle.diagRule, r) !== 1) continue;
+    return { ...puzzle, diagRule2: r, counts: newCounts };
+  }
+  return puzzle;
+}
+
 function tryGenerateDiabolique(maxTries = 800) {
   if (DIAB_RULES.length < 6) return null;
-  const MIN_C = 2, MAX_C = 5;
+  const MIN_C = 2, MAX_C = 4;
   const idxArr = Array.from({length: DIAB_RULES.length}, (_, i) => i);
 
   for (let t = 0; t < maxTries; t++) {
@@ -1273,7 +1293,7 @@ function tryGenerateDiabolique(maxTries = 800) {
     const usedGroups = new Set(rowRules.map(r => r.g));
     if (usedGroups.size < 3) continue;
 
-    // 2. Pour chaque colonne, chercher greedy une règle qui donne 2-5 candidats
+    // 2. Pour chaque colonne, chercher greedy une règle qui donne 2-4 candidats
     //    dans TOUTES les 3 cases de la colonne
     const colRules = [];
     let colOk = true;
@@ -1302,13 +1322,17 @@ function tryGenerateDiabolique(maxTries = 800) {
       for (let col = 0; col < 3; col++)
         counts.push(rowPools[row].filter(p => colRules[col].fn(p)).length);
 
-    // 4. Vérifier l'unicité (rapide : 2-5 candidats/case max)
+    // 4. Vérifier l'unicité (rapide : 2-4 candidats/case max)
     if (countSolutions(rowRules, colRules, null, null) !== 1) continue;
 
     const base = { rowRules, colRules, diagRule: null, diagRule2: null, counts, isUnique: true };
-    // 5. Diagonale obligatoire pour garantir difficulté > expert2
+    // 5. Diagonale principale obligatoire (↘ cases 0,4,8)
     const withDiag = tryAddDiabDiag(base, usedGroups);
-    if (withDiag.diagRule) return withDiag;
+    if (!withDiag.diagRule) continue;
+    // 6. Anti-diagonale obligatoire (↙ cases 2,4,6) — rend la case centrale 4×contrainte
+    const groups2 = new Set([...usedGroups, withDiag.diagRule.g]);
+    const withDiag2 = tryAddDiabDiag2(withDiag, groups2);
+    if (withDiag2.diagRule2) return withDiag2;
   }
   return null;
 }
@@ -1316,7 +1340,7 @@ function tryGenerateDiabolique(maxTries = 800) {
 function generatePuzzle(diff='moyen') {
   if (diff === 'diabolique') {
     // Augmenter les essais pour trouver un vrai puzzle unique
-    const r = tryGenerateDiabolique(3000);
+    const r = tryGenerateDiabolique(5000);
     if (r) return r;
     // Fallback : puzzle difficile classique, sans contrainte d'unicité
     const fb = tryGenerate('difficile', 4, 9, 800) || tryGenerate('moyen', 8, 15, 400);
@@ -1674,9 +1698,15 @@ function setCellState(idx, state, msg) {
 }
 
 // ── Helpers scoring ────────────────────────────────────────
+const DIFF_MULT = {
+  facile: 0.7, moyen: 1.0, difficile: 1.4,
+  avance: 1.8, expert2: 2.3, diabolique: 3.0,
+};
+
 function cellBasePoints(idx) {
   const n = puzzle ? puzzle.counts[idx] : 9;
-  return Math.max(1, Math.round(7 / Math.sqrt(n)));
+  const base = Math.max(1, Math.round(7 / Math.sqrt(n)));
+  return Math.max(1, Math.round(base * (DIFF_MULT[difficulty] || 1.0)));
 }
 
 // ── Notoriété composite : population + bonus thématique ─────
@@ -1764,9 +1794,25 @@ function computeScore() {
     cellScores.push({ pts, gross, penalty: pen, hintPen: hintPenalties[idx], resetPen: resetPenalties[idx], wrongPen: wrongPenalties[idx], bot: false, rm });
   }
 
+  // Bonus lignes / colonnes / grille complète (cases résolues par le joueur uniquement)
+  const mult = DIFF_MULT[difficulty] || 1.0;
+  const bonusPer = Math.max(1, Math.round(4 * mult));
+  let rowBonus = 0, colBonus = 0, gridBonus = 0;
+  for (let r = 0; r < 3; r++) {
+    const c3 = [r*3, r*3+1, r*3+2];
+    if (c3.every(i => states[i] === 'valid' && !solvedByBot[i])) rowBonus += bonusPer;
+  }
+  for (let c = 0; c < 3; c++) {
+    const c3 = [c, c+3, c+6];
+    if (c3.every(i => states[i] === 'valid' && !solvedByBot[i])) colBonus += bonusPer;
+  }
+  if (states.every(s => s === 'valid') && solvedByBot.every(b => !b))
+    gridBonus = Math.max(1, Math.round(12 * mult));
+  total += rowBonus + colBonus + gridBonus;
+
   const totalResetPenalty = resetPenalties.reduce((a,b) => a+b, 0);
   const totalWrongPenalty = wrongPenalties.reduce((a,b) => a+b, 0);
-  return { total, totalHintPenalty, totalResetPenalty, totalWrongPenalty, botCells, cellScores };
+  return { total, totalHintPenalty, totalResetPenalty, totalWrongPenalty, botCells, cellScores, rowBonus, colBonus, gridBonus };
 }
 
 function updateScore() {
@@ -1826,7 +1872,10 @@ function solveAll() {
 
 function checkVictory() {
   if (!states.every(s => s === 'valid')) return;
-  const { total, totalHintPenalty, totalResetPenalty, totalWrongPenalty, botCells, cellScores } = computeScore();
+  const { total, totalHintPenalty, totalResetPenalty, totalWrongPenalty, botCells, cellScores, rowBonus, colBonus, gridBonus } = computeScore();
+
+  const diffLabel = { facile:'Facile', moyen:'Moyen', difficile:'Difficile', avance:'Expert', expert2:'Expert +', diabolique:'Diabolique' };
+  const mult = DIFF_MULT[difficulty] || 1.0;
 
   const rareCells = cellScores.filter(c => c && !c.bot && c.rm >= 1.5);
   const rareRows = rareCells.map(c => {
@@ -1838,8 +1887,11 @@ function checkVictory() {
   vs.innerHTML = `
     <div class="score-total">&#127942; ${total} pts</div>
     <div class="score-breakdown">
-      <div class="score-row" style="color:#888;font-size:0.85em"><span>Score = difficulté × rareté du pays</span><span></span></div>
+      <div class="score-row" style="color:#888;font-size:0.85em"><span>Multiplicateur ${diffLabel[difficulty] || difficulty} (×${mult.toFixed(1)})</span><span></span></div>
       ${rareRows}
+      ${rowBonus  ? `<div class="score-row" style="color:#86efac"><span>Bonus lignes complètes</span><span>+${rowBonus} pts</span></div>` : ''}
+      ${colBonus  ? `<div class="score-row" style="color:#86efac"><span>Bonus colonnes complètes</span><span>+${colBonus} pts</span></div>` : ''}
+      ${gridBonus ? `<div class="score-row" style="color:#fde68a"><span>🏆 Bonus grille entière</span><span>+${gridBonus} pts</span></div>` : ''}
       ${totalWrongPenalty ? `<div class="score-row neg"><span>Réponses invalides</span><span>−${totalWrongPenalty} pts</span></div>` : ''}
       ${totalHintPenalty  ? `<div class="score-row neg"><span>Indices utilisés</span><span>−${totalHintPenalty} pts</span></div>` : ''}
       ${totalResetPenalty ? `<div class="score-row neg"><span>Pays retirés puis replacés</span><span>−${totalResetPenalty} pts</span></div>` : ''}
@@ -2408,6 +2460,13 @@ async function submitPseudo() {
 // CHANGELOG
 // ═══════════════════════════════════════════════════════════
 const CHANGELOG = [
+  { v:'1.5', date:'29/05/2026', changes:[
+    'Diabolique : 2e diagonale obligatoire (↘ + ↙) — case centrale à 4 contraintes',
+    'Diabolique : intersections encore plus serrées (max 4 candidats/case)',
+    'Scoring × difficulté : Facile ×0.7 → Diabolique ×3.0',
+    'Bonus ligne complète, colonne complète et grille entière (×difficulté)',
+    'Détail des bonus affiché dans le score de fin de partie',
+  ]},
   { v:'1.4', date:'29/05/2026', changes:[
     'Refonte graphique complète (design professionnel)',
     'Police Inter, titre en dégradé, palette de couleurs cohérente',
