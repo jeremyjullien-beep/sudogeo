@@ -923,11 +923,7 @@ function updateHintBtn() {
 function newGame() {
   puzzle = generatePuzzle(difficulty);
   if (!puzzle) return;
-  if (_isFirstGame) { _isFirstGame = false; } else {
-    incStat('started');
-    renderStats();
-    sbIncrementGlobal().then(renderGlobalCount);
-  }
+  _currentGameCounted = false;
   states      = Array(9).fill(null);
   hintStates  = Array.from({length:9}, () => new Set());
   selectedIdx = -1;
@@ -1134,6 +1130,13 @@ function hideCellImage(idx) {
 function validateCell(idx) {
   const inp = getInput(idx);
   if (!inp || !inp.value.trim()) return;
+  // Compter la partie dès le premier vrai essai
+  if (!_currentGameCounted) {
+    _currentGameCounted = true;
+    incStat('started');
+    renderStats();
+    sbIncrementGlobal().then(renderGlobalCount);
+  }
   const q = normInput(inp.value);
   const country = COUNTRY_INDEX.get(q) || COUNTRIES.find(p => p._norm === q);
   const row = Math.floor(idx/3), col = idx%3;
@@ -1719,14 +1722,17 @@ async function renderGlobalCount() {
   const el = document.getElementById('global-count');
   if (!el) return;
   const n = await sbGetGlobalCount();
-  if (n === null) { el.textContent = ''; return; }
+  if (n === null) {
+    el.innerHTML = `🌍 <span style="color:#475569">compteur global indisponible</span>`;
+    return;
+  }
   el.innerHTML = `🌍 <span>${n.toLocaleString('fr-FR')}</span> partie${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''} dans le monde`;
 }
 
 // ─────────────────────────────────────────────────────────────
 const STORAGE_KEY       = 'sudogeo_best';
 const STATS_KEY         = 'sudogeo_stats';
-let   _isFirstGame      = true; // évite de compter le chargement initial
+let   _currentGameCounted = false; // vrai dès le premier essai de la partie
 
 function loadBests() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
