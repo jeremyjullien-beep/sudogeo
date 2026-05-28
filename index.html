@@ -963,9 +963,9 @@ const DIFF_CFG = {
   facile:     { minMin: 15, maxMin: Infinity }, // ≥15 réponses/case
   moyen:      { minMin: 8,  maxMin: 15 },       // 8–14 réponses/case
   difficile:  { minMin: 4,  maxMin: 9 },        // 4–8 réponses/case
-  avance:     { minMin: 2,  maxMin: 6 },        // 2–5 réponses/case
-  expert2:    { minMin: 1,  maxMin: 4 },        // 1–3 réponses/case
-  diabolique: { minMin: 2,  maxMin: 7 },        // unique solution, 2–6 réponses/case
+  avance:     { minMin: 3,  maxMin: 7 },        // 3–6 réponses/case
+  expert2:    { minMin: 2,  maxMin: 5 },        // 2–4 réponses/case (pas de case triviale)
+  diabolique: { minMin: 2,  maxMin: 5 },        // 2–4 réponses/case + solution unique
 };
 let difficulty = 'moyen';
 
