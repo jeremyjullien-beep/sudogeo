@@ -1235,7 +1235,7 @@ function buildDiabRules() {
   DIAB_RULES = []; DIAB_POOLS = [];
   for (const r of RULES) {
     const pool = COUNTRIES.filter(p => r.fn(p));
-    if (pool.length >= 12 && pool.length <= 50) {
+    if (pool.length >= 5 && pool.length <= 80) {
       DIAB_RULES.push(r);
       DIAB_POOLS.push(pool);
     }
@@ -1282,7 +1282,6 @@ function tryAddDiabDiag2(puzzle, usedGroups) {
 
 function tryGenerateDiabolique(maxTries = 2000) {
   if (DIAB_RULES.length < 7) return null;
-  const MIN_C = 2, MAX_C = 5;
   const idxArr = Array.from({length: DIAB_RULES.length}, (_, i) => i);
 
   for (let t = 0; t < maxTries; t++) {
@@ -1293,7 +1292,7 @@ function tryGenerateDiabolique(maxTries = 2000) {
     const usedGroups = new Set(rowRules.map(r => r.g));
     if (usedGroups.size < 3) continue;
 
-    // 2. Règles-colonnes avec 2-5 candidats bruts (row ∩ col)
+    // 2. Règles-colonnes : 1–6 candidats bruts (1 autorisé = case potentiellement forcée)
     const colRules = [];
     let colOk = true;
     for (let col = 0; col < 3; col++) {
@@ -1304,7 +1303,7 @@ function tryGenerateDiabolique(maxTries = 2000) {
         let ok = true;
         for (let row = 0; row < 3; row++) {
           const n = rowPools[row].filter(p => cr.fn(p)).length;
-          if (n < MIN_C || n > MAX_C) { ok = false; break; }
+          if (n < 1 || n > 6) { ok = false; break; }
         }
         if (ok) valid.push(cr);
       }
@@ -1315,31 +1314,40 @@ function tryGenerateDiabolique(maxTries = 2000) {
     }
     if (!colOk) continue;
 
-    // 3. Chercher une diagonale telle que row+col+diag → exactement 1 solution
-    //    C'est la diagonale qui CRÉE l'unicité (pas l'inverse)
-    const diagPool = shuffle(DIAB_RULES.filter(r => !usedGroups.has(r.g)));
-    for (const diagRule of diagPool) {
-      // Chaque case diagonale doit avoir ≥2 candidats après row+col+diag
-      let diagOk = true;
-      for (const idx of [0, 4, 8]) {
-        const row = Math.floor(idx/3), col = idx%3;
-        if (cellCandidates(rowRules[row], colRules[col], diagRule, null).length < 2) {
-          diagOk = false; break;
-        }
-      }
-      if (!diagOk) continue;
-
-      // Unicité avec la diagonale
-      if (countSolutions(rowRules, colRules, diagRule, null) !== 1) continue;
-
-      // Counts réels (cases 0/4/8 avec diag, les autres sans)
-      const counts = Array.from({length: 9}, (_, idx) => {
+    // 3. Trouver une diagonale telle que :
+    //    a) Aucune case vide après row+col+diag
+    //    b) Au moins 1 case forcée : 1 seul pays valide, ET ce pays est valide ailleurs  ← PROPRIÉTÉ DIABOLIQUE
+    //    c) Solution unique globale
+    for (const diagRule of shuffle(DIAB_RULES.filter(r => !usedGroups.has(r.g)))) {
+      const cands = Array.from({length: 9}, (_, idx) => {
         const row = Math.floor(idx/3), col = idx%3;
         const dr = (idx===0||idx===4||idx===8) ? diagRule : null;
-        return cellCandidates(rowRules[row], colRules[col], dr, null).length;
+        return cellCandidates(rowRules[row], colRules[col], dr, null);
       });
 
-      return { rowRules, colRules, diagRule, diagRule2: null, counts, isUnique: true };
+      // a) Aucune case vide
+      if (cands.some(c => c.length === 0)) continue;
+
+      // b) Case forcée dont le pays est aussi valide ailleurs
+      let hasForcing = false;
+      for (let i = 0; i < 9 && !hasForcing; i++) {
+        if (cands[i].length !== 1) continue;
+        const fc = cands[i][0];
+        for (let j = 0; j < 9; j++) {
+          if (j !== i && cands[j].some(p => p.code === fc.code)) {
+            hasForcing = true; break;
+          }
+        }
+      }
+      if (!hasForcing) continue;
+
+      // c) Solution unique — rapide grâce aux cases forcées traitées en premier
+      if (countSolutions(rowRules, colRules, diagRule, null) !== 1) continue;
+
+      return {
+        rowRules, colRules, diagRule, diagRule2: null,
+        counts: cands.map(c => c.length), isUnique: true
+      };
     }
   }
   return null;
@@ -2469,9 +2477,10 @@ async function submitPseudo() {
 // ═══════════════════════════════════════════════════════════
 const CHANGELOG = [
   { v:'1.5', date:'29/05/2026', changes:[
-    'Diabolique : correction génération — diagonale toujours présente',
-    'Diabolique : c\'est la diagonale qui crée l\'unicité (row+col+diag → 1 seule solution)',
-    'Diabolique : toute erreur de placement rend la grille insoluble',
+    'Diabolique : diagonale toujours présente, pool de règles élargi',
+    'Diabolique : au moins 1 case avec 1 seul pays valide (case forcée)',
+    'Diabolique : ce pays unique est aussi valide ailleurs — placer au mauvais endroit = grille insoluble',
+    'Diabolique : solution unique garantie (1 seule combinaison de 9 pays)',
     'Scoring × difficulté : Facile ×0.7 → Diabolique ×3.0',
     'Bonus ligne complète, colonne complète et grille entière (×difficulté)',
     'Détail des bonus affiché dans le score de fin de partie',
