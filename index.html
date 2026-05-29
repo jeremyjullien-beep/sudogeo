@@ -709,6 +709,83 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
 }
 .btn-changelog:hover { background: rgba(255,255,255,0.09); color: var(--text-2); }
 
+/* ── Loupe classement + preview grille ───────────────────── */
+.lb-preview-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-3); font-size: 0.95em; padding: 2px 5px;
+  border-radius: 5px; transition: color 0.15s, background 0.15s; line-height: 1;
+}
+.lb-preview-btn:hover { color: var(--text-1); background: rgba(255,255,255,0.08); }
+
+#grid-preview-popup {
+  position: fixed; z-index: 450;
+  background: var(--surface);
+  border: 1px solid var(--border-med);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+  padding: 12px 14px 14px;
+  max-width: 340px; width: max-content;
+}
+.gpp-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px; gap: 10px;
+}
+.gpp-title { font-size: 0.72em; color: var(--text-3); font-weight: 600; }
+.gpp-close {
+  background: none; border: none; color: var(--text-3); cursor: pointer;
+  font-size: 0.9em; padding: 0 2px; line-height: 1; border-radius: 4px;
+}
+.gpp-close:hover { color: var(--text-1); }
+.gpp-grid {
+  display: grid;
+  gap: 3px;
+  font-size: 0.62em;
+  line-height: 1.3;
+}
+/* 4 cols par défaut (pas de diag2), 5 cols si diag2 */
+.gpp-grid-4 { grid-template-columns: 76px repeat(3, 1fr); }
+.gpp-grid-5 { grid-template-columns: 76px repeat(3, 1fr) 76px; }
+.gpp-corner {
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+  border-radius: 5px; padding: 4px 5px; text-align: center;
+  color: var(--text-3); display: flex; align-items: center; justify-content: center; min-height: 36px;
+}
+.gpp-diag {
+  background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.22);
+  border-radius: 5px; padding: 4px 5px; text-align: center;
+  color: #d8b4fe; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+}
+.gpp-diag2 {
+  background: rgba(233,30,99,0.1); border: 1px solid rgba(233,30,99,0.22);
+  border-radius: 5px; padding: 4px 5px; text-align: center;
+  color: #fbcfe8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+}
+.gpp-col {
+  background: rgba(20,184,166,0.08); border: 1px solid rgba(20,184,166,0.18);
+  border-radius: 5px; padding: 4px 5px; text-align: center; color: #5eead4;
+  display: flex; align-items: center; justify-content: center; min-height: 36px;
+}
+.gpp-row {
+  background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.16);
+  border-radius: 5px; padding: 4px 5px; color: #93c5fd;
+  display: flex; align-items: center; min-height: 46px;
+}
+.gpp-cell {
+  background: var(--surface-2); border: 1px solid var(--border-med);
+  border-radius: 5px; padding: 4px; text-align: center;
+  color: var(--text-2); display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.05em; min-height: 46px;
+}
+.gpp-cell.cc-hard  { color: #fca5a5; }
+.gpp-cell.cc-medium{ color: #fde68a; }
+.gpp-cell.cc-easy  { color: #86efac; }
+/* Bordure des cases sur la diagonale ↘ */
+.gpp-cell.diag1 { border-color: rgba(168,85,247,0.4); }
+/* Bordure des cases sur la diagonale ↙ */
+.gpp-cell.diag2 { border-color: rgba(233,30,99,0.4); }
+/* Case au croisement des deux diagonales */
+.gpp-cell.diag1.diag2 { border-color: rgba(168,85,247,0.4); }
+
 .cl-overlay {
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -826,7 +903,7 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
 <div class="cl-overlay" id="cl-overlay" onclick="if(event.target===this)closeCl()">
   <div class="cl-panel" id="cl-panel"></div>
 </div>
-<button class="btn-changelog" onclick="openCl()">v1.8 — changelog</button>
+<button class="btn-changelog" onclick="openCl()">v2.0 — changelog</button>
 
 <div class="zoo-overlay" id="zoo-overlay" onclick="if(event.target===this)closeZoo()">
   <div class="zoo-panel">
@@ -1231,13 +1308,25 @@ function tryGenerate(diff, minMin, maxMin, maxTries) {
 // Pré-calcul des règles à pool 12-50 pays + leurs pools
 let DIAB_RULES = [], DIAB_POOLS = [];
 
+let DIAB_PAIRS = null; // Map: ri*1000+ci → pays[] (intersection rowRule[ri] ∩ colRule[ci])
+
 function buildDiabRules() {
-  DIAB_RULES = []; DIAB_POOLS = [];
+  DIAB_RULES = []; DIAB_POOLS = []; DIAB_PAIRS = null;
   for (const r of RULES) {
     const pool = COUNTRIES.filter(p => r.fn(p));
     if (pool.length >= 5 && pool.length <= 80) {
       DIAB_RULES.push(r);
       DIAB_POOLS.push(pool);
+    }
+  }
+  // Précalcul toutes les intersections paires (n²) → très rapide
+  DIAB_PAIRS = new Map();
+  const n = DIAB_RULES.length;
+  for (let ri = 0; ri < n; ri++) {
+    for (let ci = 0; ci < n; ci++) {
+      if (ri === ci) continue;
+      const inter = DIAB_POOLS[ri].filter(p => DIAB_RULES[ci].fn(p));
+      if (inter.length) DIAB_PAIRS.set(ri * 1000 + ci, inter);
     }
   }
 }
@@ -1281,73 +1370,77 @@ function tryAddDiabDiag2(puzzle, usedGroups) {
 }
 
 function tryGenerateDiabolique(maxTries = 2000) {
-  if (DIAB_RULES.length < 7) return null;
-  const idxArr = Array.from({length: DIAB_RULES.length}, (_, i) => i);
+  if (!DIAB_PAIRS || DIAB_RULES.length < 7) return null;
+  const EMPTY = [];
+  const allIdxs = Array.from({length: DIAB_RULES.length}, (_, i) => i);
 
   for (let t = 0; t < maxTries; t++) {
-    // 1. Tirer 3 règles-lignes
-    const [ri0, ri1, ri2] = shuffle(idxArr);
-    const rowRules = [DIAB_RULES[ri0], DIAB_RULES[ri1], DIAB_RULES[ri2]];
-    const rowPools = [DIAB_POOLS[ri0], DIAB_POOLS[ri1], DIAB_POOLS[ri2]];
-    const usedGroups = new Set(rowRules.map(r => r.g));
+    // 1. 3 indices-lignes avec groupes distincts
+    const sh = shuffle(allIdxs);
+    const ri0 = sh[0], ri1 = sh[1], ri2 = sh[2];
+    const usedGroups = new Set([DIAB_RULES[ri0].g, DIAB_RULES[ri1].g, DIAB_RULES[ri2].g]);
     if (usedGroups.size < 3) continue;
+    const rIdxs = [ri0, ri1, ri2];
 
-    // 2. Règles-colonnes : 1–6 candidats bruts (1 autorisé = case potentiellement forcée)
-    const colRules = [];
+    // 2. 3 indices-colonnes via paires précalculées (O(1) par vérification)
+    const cIdxs = [];
     let colOk = true;
     for (let col = 0; col < 3; col++) {
       const valid = [];
       for (let ci = 0; ci < DIAB_RULES.length; ci++) {
-        const cr = DIAB_RULES[ci];
-        if (usedGroups.has(cr.g)) continue;
+        if (usedGroups.has(DIAB_RULES[ci].g)) continue;
         let ok = true;
-        for (let row = 0; row < 3; row++) {
-          const n = rowPools[row].filter(p => cr.fn(p)).length;
+        for (const ri of rIdxs) {
+          const n = (DIAB_PAIRS.get(ri * 1000 + ci) || EMPTY).length;
           if (n < 1 || n > 6) { ok = false; break; }
         }
-        if (ok) valid.push(cr);
+        if (ok) valid.push(ci);
       }
       if (!valid.length) { colOk = false; break; }
-      const chosen = valid[Math.floor(Math.random() * valid.length)];
-      colRules.push(chosen);
-      usedGroups.add(chosen.g);
+      const ci = valid[Math.floor(Math.random() * valid.length)];
+      cIdxs.push(ci);
+      usedGroups.add(DIAB_RULES[ci].g);
     }
     if (!colOk) continue;
 
-    // 3. Trouver une diagonale telle que :
-    //    a) Aucune case vide après row+col+diag
-    //    b) Au moins 1 case forcée : 1 seul pays valide, ET ce pays est valide ailleurs  ← PROPRIÉTÉ DIABOLIQUE
-    //    c) Solution unique globale
-    for (const diagRule of shuffle(DIAB_RULES.filter(r => !usedGroups.has(r.g)))) {
-      const cands = Array.from({length: 9}, (_, idx) => {
-        const row = Math.floor(idx/3), col = idx%3;
-        const dr = (idx===0||idx===4||idx===8) ? diagRule : null;
-        return cellCandidates(rowRules[row], colRules[col], dr, null);
-      });
+    // 3. Diagonale : filtrage ultra-rapide sur 1-6 pays précalculés (pas 194)
+    const diagIdxs = shuffle(allIdxs.filter(i => !usedGroups.has(DIAB_RULES[i].g)));
+    for (const di of diagIdxs) {
+      const diagFn = DIAB_RULES[di].fn;
+      const cands = [];
+      let anyEmpty = false;
 
-      // a) Aucune case vide
-      if (cands.some(c => c.length === 0)) continue;
+      for (let row = 0; row < 3 && !anyEmpty; row++) {
+        for (let col = 0; col < 3; col++) {
+          const idx = row * 3 + col;
+          const pair = DIAB_PAIRS.get(rIdxs[row] * 1000 + cIdxs[col]) || EMPTY;
+          // Cases diagonales ↘ : filtrer par diagFn sur les ~2-6 pays du pair
+          const c = (idx === 0 || idx === 4 || idx === 8) ? pair.filter(p => diagFn(p)) : pair;
+          if (c.length === 0) { anyEmpty = true; break; }
+          cands.push(c);
+        }
+      }
+      if (anyEmpty) continue;
 
-      // b) Case forcée dont le pays est aussi valide ailleurs
+      // Propriété Diabolique : ≥1 case avec 1 seul pays, ce pays valide ailleurs
       let hasForcing = false;
       for (let i = 0; i < 9 && !hasForcing; i++) {
         if (cands[i].length !== 1) continue;
         const fc = cands[i][0];
         for (let j = 0; j < 9; j++) {
-          if (j !== i && cands[j].some(p => p.code === fc.code)) {
-            hasForcing = true; break;
-          }
+          if (j !== i && cands[j].some(p => p.code === fc.code)) { hasForcing = true; break; }
         }
       }
       if (!hasForcing) continue;
 
-      // c) Solution unique — rapide grâce aux cases forcées traitées en premier
+      // Unicité (backtracking rapide grâce aux cases forcées)
+      const rowRules = rIdxs.map(ri => DIAB_RULES[ri]);
+      const colRules = cIdxs.map(ci => DIAB_RULES[ci]);
+      const diagRule = DIAB_RULES[di];
       if (countSolutions(rowRules, colRules, diagRule, null) !== 1) continue;
 
-      return {
-        rowRules, colRules, diagRule, diagRule2: null,
-        counts: cands.map(c => c.length), isUnique: true
-      };
+      return { rowRules, colRules, diagRule, diagRule2: null,
+               counts: cands.map(c => c.length), isUnique: true };
     }
   }
   return null;
@@ -1366,7 +1459,7 @@ function fillDiabPool() {
       DIAB_POOL_FILLING = false;
       return;
     }
-    const p = tryGenerateDiabolique(100);
+    const p = tryGenerateDiabolique(500);
     if (p) DIAB_POOL.push(p);
     setTimeout(step, 20); // 20 ms de pause entre chaque grille → UI fluide
   }
@@ -1830,6 +1923,11 @@ function computeScore() {
     cellScores.push({ pts, gross, penalty: pen, hintPen: hintPenalties[idx], wrongPen: wrongPenalties[idx], bot: false, rm });
   }
 
+  // Pénalités des cases pas encore validées (mauvaises réponses en cours)
+  for (let idx = 0; idx < 9; idx++) {
+    if (states[idx] !== 'valid') total -= wrongPenalties[idx] + hintPenalties[idx];
+  }
+
   // Bonus lignes / colonnes / grille complète (cases résolues par le joueur uniquement)
   const mult = DIFF_MULT[difficulty] || 1.0;
   const bonusPer = Math.max(1, Math.round(4 * mult));
@@ -2290,7 +2388,7 @@ async function sbIncrementGlobal() {
 async function sbGetTop5(diff) {
   try {
     const r = await fetch(
-      `${SB_URL}/rest/v1/leaderboard?difficulty=eq.${diff}&order=score.desc&limit=5&select=pseudo,score,created_at`,
+      `${SB_URL}/rest/v1/leaderboard?difficulty=eq.${diff}&order=score.desc&limit=5&select=pseudo,score,grid_data,created_at`,
       { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
     );
     return await r.json();
@@ -2300,7 +2398,7 @@ async function sbGetTop5(diff) {
 async function sbGetTop5Global() {
   try {
     const r = await fetch(
-      `${SB_URL}/rest/v1/leaderboard?order=score.desc&limit=5&select=pseudo,score,difficulty,created_at`,
+      `${SB_URL}/rest/v1/leaderboard?order=score.desc&limit=5&select=pseudo,score,difficulty,grid_data,created_at`,
       { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
     );
     return await r.json();
@@ -2328,12 +2426,100 @@ function maxScoreEstimate(diff) {
   return 9 * maxCell + 3 * bonusPer + 3 * bonusPer + gridB;
 }
 
-async function sbSubmitScore(diff, pseudo, score) {
+function puzzleToGridData(p) {
+  if (!p) return null;
+  return JSON.stringify({
+    rows:   p.rowRules.map(r => r.label),
+    cols:   p.colRules.map(r => r.label),
+    diag:   p.diagRule  ? p.diagRule.label  : null,
+    diag2:  p.diagRule2 ? p.diagRule2.label : null,
+    counts: p.counts,
+  });
+}
+
+let _lbGrids = {};  // id → grid_data JSON string (évite les problèmes d'échappement HTML)
+
+function showGridPreview(evt, id) {
+  evt.stopPropagation();
+  closeGridPreview();
+  const raw = _lbGrids[id];
+  if (!raw) return;
+  const d = JSON.parse(raw);
+
+  const hasDiag2 = !!d.diag2;
+  const colsCls  = hasDiag2 ? 'gpp-grid-5' : 'gpp-grid-4';
+
+  // Coin haut-gauche : règle ↘ ou vide
+  const cornerTL = d.diag
+    ? `<div class="gpp-diag"><span>↘</span><span>${d.diag}</span></div>`
+    : `<div class="gpp-corner"></div>`;
+
+  // Coin haut-droit : règle ↙ (seulement si diag2)
+  const cornerTR = hasDiag2
+    ? `<div class="gpp-diag2"><span>↙</span><span>${d.diag2}</span></div>`
+    : '';
+
+  // Colonnes
+  const colsHtml = d.cols.map(c => `<div class="gpp-col">${c}</div>`).join('');
+
+  // Lignes + cases
+  let rowsHtml = '';
+  for (let r = 0; r < 3; r++) {
+    rowsHtml += `<div class="gpp-row">${d.rows[r]}</div>`;
+    for (let c = 0; c < 3; c++) {
+      const idx = r * 3 + c;
+      const n   = d.counts[idx];
+      const cls = n >= 10 ? 'cc-easy' : n >= 4 ? 'cc-medium' : 'cc-hard';
+      // Marquer les cases sur les diagonales
+      const onD1 = d.diag  && (idx === 0 || idx === 4 || idx === 8) ? ' diag1' : '';
+      const onD2 = d.diag2 && (idx === 2 || idx === 4 || idx === 6) ? ' diag2' : '';
+      rowsHtml += `<div class="gpp-cell ${cls}${onD1}${onD2}" title="${n} réponse${n>1?'s':''}">${n}</div>`;
+    }
+    // Colonne vide (espace) sur les lignes si hasDiag2 (5e colonne)
+    if (hasDiag2) rowsHtml += `<div class="gpp-corner"></div>`;
+  }
+
+  const popup = document.createElement('div');
+  popup.id = 'grid-preview-popup';
+  popup.innerHTML = `
+    <div class="gpp-header">
+      <span class="gpp-title">Grille jouée</span>
+      <button class="gpp-close" onclick="closeGridPreview()">✕</button>
+    </div>
+    <div class="gpp-grid ${colsCls}">
+      ${cornerTL}${colsHtml}${hasDiag2 ? cornerTR : ''}
+      ${rowsHtml}
+    </div>
+    <p style="font-size:0.62em;color:var(--text-3);margin-top:8px;text-align:center">
+      Les chiffres indiquent le nombre de pays valides par case
+    </p>`;
+  document.body.appendChild(popup);
+
+  // Positionnement relatif au bouton cliqué
+  const btn = evt.currentTarget || evt.target;
+  const rect = btn.getBoundingClientRect();
+  const pw = 340, ph = 280;
+  let left = Math.min(rect.left, window.innerWidth - pw - 10);
+  let top  = rect.bottom + 6;
+  if (top + ph > window.innerHeight - 10) top = rect.top - ph - 6;
+  popup.style.left = Math.max(6, left) + 'px';
+  popup.style.top  = Math.max(6, top)  + 'px';
+}
+
+function closeGridPreview() {
+  document.getElementById('grid-preview-popup')?.remove();
+}
+document.addEventListener('click', e => {
+  const p = document.getElementById('grid-preview-popup');
+  if (p && !p.contains(e.target) && !e.target.classList.contains('lb-preview-btn')) closeGridPreview();
+});
+
+async function sbSubmitScore(diff, pseudo, score, gridData) {
   await fetch(`${SB_URL}/rest/v1/leaderboard`, {
     method: 'POST',
     headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`,
                 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-    body: JSON.stringify({ difficulty: diff, pseudo: pseudo.trim(), score })
+    body: JSON.stringify({ difficulty: diff, pseudo: pseudo.trim(), score, grid_data: gridData })
   });
 }
 
@@ -2476,8 +2662,7 @@ async function loadLbContent(diff) {
   if (!rows.length) { el.innerHTML = '<p class="lb-empty">Aucun score enregistré</p>'; return; }
 
   const medals = ['🥇','🥈','🥉'];
-  const diffCol = isGlobal
-    ? `<th>Mode</th>` : '';
+  const diffCol  = isGlobal ? `<th>Mode</th>` : '';
   const diffCell = isGlobal
     ? r => `<td style="color:#8496b0;font-size:0.82em">${DIFF_LABELS[r.difficulty]||r.difficulty}</td>` : () => '';
 
@@ -2487,22 +2672,31 @@ async function loadLbContent(diff) {
        <span style="opacity:0.6">(parfait · pays rares · sans erreur)</span>
      </p>`;
 
+  // Stocker les grid_data dans _lbGrids (évite l'échappement HTML dans les attributs)
+  _lbGrids = {};
+  rows.forEach((r, i) => { if (r.grid_data) _lbGrids[`${diff}-${i}`] = r.grid_data; });
+
   el.innerHTML = `<table class="lb-table">
-    <thead><tr><th>#</th><th>Pseudo</th>${diffCol}<th>Score</th><th>Date</th></tr></thead>
-    <tbody>${rows.map((r,i) => `<tr>
-      <td class="${i<3?'lb-rank-'+(i+1):''}">${medals[i]||i+1}</td>
-      <td>${escHtml(r.pseudo)}</td>
-      ${diffCell(r)}
-      <td><strong>${r.score} pts</strong></td>
-      <td style="color:#475569;font-size:0.85em">${new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
-    </tr>`).join('')}</tbody></table>${maxHint}`;
+    <thead><tr><th>#</th><th>Pseudo</th>${diffCol}<th>Score</th><th>Date</th><th></th></tr></thead>
+    <tbody>${rows.map((r,i) => {
+      const gid = r.grid_data ? `${diff}-${i}` : null;
+      return `<tr>
+        <td class="${i<3?'lb-rank-'+(i+1):''}">${medals[i]||i+1}</td>
+        <td>${escHtml(r.pseudo)}</td>
+        ${diffCell(r)}
+        <td><strong>${r.score} pts</strong></td>
+        <td style="color:#475569;font-size:0.85em">${new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
+        <td>${gid ? `<button class="lb-preview-btn" onclick="showGridPreview(event,'${gid}')">🔍</button>` : ''}</td>
+      </tr>`;
+    }).join('')}</tbody></table>${maxHint}`;
 }
 
 // ── Formulaire pseudo dans la fenêtre de victoire ────────────
-let _pendingScore = 0, _pendingDiff = '';
+let _pendingScore = 0, _pendingDiff = '', _pendingGridData = null;
 
 function showPseudoForm(score, diff, inGlobal = false) {
   _pendingScore = score; _pendingDiff = diff;
+  _pendingGridData = puzzleToGridData(puzzle);
   const label = DIFF_LABELS[diff] || diff;
   const vs = document.getElementById('victory-score');
   if (vs.querySelector('.pseudo-section')) return;
@@ -2528,7 +2722,7 @@ async function submitPseudo() {
   const btn = document.querySelector('.btn-pseudo');
   btn.disabled = true; btn.textContent = '…';
   try {
-    await sbSubmitScore(_pendingDiff, inp.value.trim(), _pendingScore);
+    await sbSubmitScore(_pendingDiff, inp.value.trim(), _pendingScore, _pendingGridData);
     document.querySelector('.pseudo-section').innerHTML =
       `<p style="color:#4ade80">✓ Score soumis ! Merci ${escHtml(inp.value.trim())} 🎉</p>`;
   } catch {
@@ -2541,6 +2735,15 @@ async function submitPseudo() {
 // CHANGELOG
 // ═══════════════════════════════════════════════════════════
 const CHANGELOG = [
+  { v:'2.0', date:'29/05/2026', changes:[
+    'Diabolique : précalcul des paires de règles → génération ~50× plus rapide',
+    'Diabolique : pool de 25 grilles prêtes, nouvelle grille instantanée',
+    'Score négatif dès la première erreur (pénalités des cases en cours comptées)',
+  ]},
+  { v:'1.9', date:'29/05/2026', changes:[
+    'Classement : loupe 🔍 pour visualiser la grille de chaque score',
+    'Preview grille : règles lignes/colonnes, diagonales ↘ et ↙, nombre de réponses par case',
+  ]},
   { v:'1.8', date:'29/05/2026', changes:[
     'Classement mondial toutes catégories (onglet 🌍 Global)',
     'Score max théorique affiché sous chaque classement par difficulté',
