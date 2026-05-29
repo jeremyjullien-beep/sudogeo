@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -871,11 +871,216 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
   .btn-diff { padding: 5px 8px; font-size: 0.66em; }
   h1 { font-size: 1.45em; }
 }
+
+/* ── Theme toggle ─────────────────────────────────────────── */
+.theme-toggle {
+  position: fixed; top: 14px; right: 14px; z-index: 100;
+  background: var(--surface); border: 1px solid var(--border-med);
+  border-radius: 50%; width: 40px; height: 40px;
+  padding: 0; font-size: 1.1em; line-height: 1; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  transition: transform 0.22s, background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.theme-toggle:hover {
+  background: var(--surface-2); border-color: var(--border-hi);
+  transform: scale(1.12) rotate(22deg);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+@media (max-width: 620px) {
+  .theme-toggle { top: 10px; right: 10px; width: 36px; height: 36px; font-size: 1em; }
+}
+
+/* ── Header with globe flags ──────────────────────────────── */
+.header-wrap {
+  display: flex; align-items: center; justify-content: center;
+  gap: 14px; margin-bottom: 5px;
+}
+.header-wrap h1 { margin-bottom: 0; }
+.title-flag {
+  font-size: 1.85em; display: inline-block; line-height: 1;
+  animation: flag-sway 3.5s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+.title-flag:last-child { animation-delay: 1.75s; }
+@keyframes flag-sway {
+  0%, 100% { transform: rotate(-6deg); }
+  50%       { transform: rotate(6deg); }
+}
+@media (max-width: 620px) {
+  .title-flag { font-size: 1.4em; }
+  .header-wrap { gap: 10px; }
+}
+
+/* ── Light theme ──────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:         #eef3fb;
+  --surface:    #ffffff;
+  --surface-2:  #f4f8ff;
+  --border:     rgba(37,99,235,0.10);
+  --border-med: rgba(37,99,235,0.16);
+  --border-hi:  rgba(37,99,235,0.30);
+  --accent:     #2563eb;
+  --accent-dim: rgba(37,99,235,0.10);
+  --text-1:     #0d1b2e;
+  --text-2:     #475569;
+  --text-3:     #94a3b8;
+  --teal-dim:   rgba(20,184,166,0.08);
+  --purple-dim: rgba(168,85,247,0.08);
+}
+[data-theme="light"] body {
+  background: var(--bg);
+  background-image: radial-gradient(ellipse 90% 45% at 50% -5%, rgba(37,99,235,0.09) 0%, transparent 100%);
+  color: var(--text-1);
+}
+[data-theme="light"] h1 {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 45%, #3b82f6 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* Diff bar */
+[data-theme="light"] .diff-bar { background: var(--surface); border-color: var(--border-med); }
+[data-theme="light"] .btn-diff { color: var(--text-3); }
+[data-theme="light"] .btn-diff:hover { background: rgba(0,0,0,0.05); color: var(--text-2); }
+[data-theme="light"] .btn-diff.active.facile    { background: #dcfce7; color: #15803d; }
+[data-theme="light"] .btn-diff.active.moyen     { background: #fef9c3; color: #854d0e; }
+[data-theme="light"] .btn-diff.active.difficile { background: #fee2e2; color: #991b1b; }
+[data-theme="light"] .btn-diff.active.avance    { background: #f3e8ff; color: #6b21a8; }
+[data-theme="light"] .btn-diff.active.expert2   { background: #fce7f3; color: #9d174d; }
+[data-theme="light"] .btn-diff.active.diabolique {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #991b1b;
+  box-shadow: 0 0 10px rgba(239,68,68,0.12), 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* Action buttons */
+[data-theme="light"] .btn-hint {
+  background: var(--surface-2) !important; color: var(--text-2) !important;
+  border-color: var(--border-med) !important;
+}
+[data-theme="light"] .btn-hint:hover {
+  background: var(--surface) !important; color: var(--text-1) !important;
+  border-color: var(--border-hi) !important;
+}
+[data-theme="light"] .btn-solver { background: transparent; color: var(--text-3); border-color: var(--border-med); }
+[data-theme="light"] .btn-solver:hover:not(:disabled) { background: rgba(0,0,0,0.04); color: var(--text-2); border-color: var(--border-hi); }
+[data-theme="light"] .btn-cell-hint { border-color: var(--border-med); color: var(--text-3); }
+
+/* Grid rules */
+[data-theme="light"] .col-rule  { background: rgba(20,184,166,0.07); border-color: rgba(20,184,166,0.22); color: #0f766e; }
+[data-theme="light"] .row-rule  { background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.20); color: #1d4ed8; }
+[data-theme="light"] .diag-rule { background: rgba(168,85,247,0.06); border-color: rgba(168,85,247,0.22); color: #6b21a8; }
+
+/* Cell messages & badges */
+[data-theme="light"] .cell.valid   .cell-msg { color: #15803d; }
+[data-theme="light"] .cell.invalid .cell-msg { color: #b91c1c; }
+[data-theme="light"] .cell.hinted  .cell-msg { color: #92400e; }
+[data-theme="light"] .cc-easy   { color: #15803d; }
+[data-theme="light"] .cc-medium { color: #92400e; }
+[data-theme="light"] .cc-hard   { color: #b91c1c; }
+[data-theme="light"] .cell.valid .cell-count { color: #15803d; }
+[data-theme="light"] .cell.valid .cell-count:hover { color: #052e16; }
+
+/* Cells */
+[data-theme="light"] .cell { background: var(--surface); border-color: var(--border-med); }
+[data-theme="light"] .cell:hover { border-color: var(--border-hi); box-shadow: 0 2px 10px rgba(37,99,235,0.10); }
+[data-theme="light"] .cell.valid   { border-color: rgba(34,197,94,0.55);  background: rgba(34,197,94,0.07);  }
+[data-theme="light"] .cell.invalid { border-color: rgba(239,68,68,0.55);  background: rgba(239,68,68,0.07);  }
+[data-theme="light"] .cell.hinted  { border-color: rgba(245,158,11,0.55); background: rgba(245,158,11,0.07); }
+[data-theme="light"] .cell.selected { outline-color: rgba(37,99,235,0.55); }
+[data-theme="light"] .cell.cell-diag  { border-color: rgba(168,85,247,0.38); }
+[data-theme="light"] .cell.cell-diag2 { border-color: rgba(233,30,99,0.40); }
+[data-theme="light"] .cell input { background: rgba(37,99,235,0.05); border-color: var(--border-med); color: var(--text-1); }
+[data-theme="light"] .cell input:focus { border-color: rgba(37,99,235,0.5); background: rgba(37,99,235,0.08); }
+
+/* Score area */
+[data-theme="light"] .score { color: #2563eb; }
+[data-theme="light"] .potential-score span { color: #92400e; }
+[data-theme="light"] .personal-best span   { color: #b45309; }
+[data-theme="light"] .score-breakdown { background: rgba(0,0,0,0.03); border-color: var(--border); }
+[data-theme="light"] .score-total { color: #b45309; }
+[data-theme="light"] .score-row.neg { color: #b91c1c; }
+
+/* Victory overlay */
+[data-theme="light"] .overlay { background: rgba(0,0,0,0.50); }
+[data-theme="light"] .overlay-box {
+  background: var(--surface); border-color: rgba(37,99,235,0.22);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.20), 0 0 0 1px rgba(0,0,0,0.04);
+}
+[data-theme="light"] .overlay-box h2 { color: #2563eb; }
+[data-theme="light"] .overlay-box p  { color: var(--text-2); }
+
+/* Zoo / leaderboard panel */
+[data-theme="light"] .zoo-overlay { background: rgba(0,0,0,0.38); }
+[data-theme="light"] .zoo-panel { background: var(--surface); border-color: var(--border-med); box-shadow: 0 20px 60px rgba(0,0,0,0.20); }
+[data-theme="light"] .zoo-head  { border-bottom-color: var(--border); }
+[data-theme="light"] .zoo-head h3 { color: #2563eb; }
+[data-theme="light"] .zoo-search { background: rgba(37,99,235,0.05); border-color: var(--border-med); color: var(--text-1); }
+[data-theme="light"] .zoo-search:focus { border-color: rgba(37,99,235,0.5); background: rgba(37,99,235,0.07); }
+[data-theme="light"] .zoo-item:hover { background: rgba(37,99,235,0.07); }
+[data-theme="light"] .zoo-meta { color: var(--text-3); }
+[data-theme="light"] .zoo-item .zi-name { color: var(--text-1); }
+[data-theme="light"] .lb-tab { border-color: var(--border-med); color: var(--text-3); background: transparent; }
+[data-theme="light"] .lb-tab.active { border-color: var(--accent); color: #2563eb; background: var(--accent-dim); }
+[data-theme="light"] .lb-table th { color: var(--text-3); border-bottom-color: rgba(0,0,0,0.07); }
+[data-theme="light"] .lb-table td { color: var(--text-1); border-bottom-color: rgba(0,0,0,0.04); }
+[data-theme="light"] .lb-rank-1 { color: #b45309; }
+[data-theme="light"] .lb-rank-2 { color: #64748b; }
+[data-theme="light"] .lb-rank-3 { color: #92400e; }
+
+/* Pseudo section */
+[data-theme="light"] .pseudo-section { background: rgba(251,191,36,0.07); border-color: rgba(251,191,36,0.28); }
+[data-theme="light"] .pseudo-section input { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.15); color: var(--text-1); }
+[data-theme="light"] .pseudo-section input:focus { border-color: #d97706; }
+
+/* Autocomplete dropdown */
+[data-theme="light"] #ac-drop { background: var(--surface); border-color: var(--border-med); box-shadow: 0 8px 28px rgba(0,0,0,0.15); }
+[data-theme="light"] #ac-drop .ac-item { color: var(--text-1); border-bottom-color: rgba(0,0,0,0.05); }
+[data-theme="light"] #ac-drop .ac-item:hover,
+[data-theme="light"] #ac-drop .ac-item.ac-sel { background: rgba(37,99,235,0.08); }
+[data-theme="light"] #ac-drop .ac-item em { color: #1d4ed8; }
+[data-theme="light"] #ac-drop .ac-item .ac-ok { color: #15803d; }
+
+/* Answers popup */
+[data-theme="light"] .answers-popup { background: var(--surface); border-color: var(--border-med); box-shadow: 0 10px 32px rgba(0,0,0,0.15); }
+[data-theme="light"] .ap-title { color: #2563eb; border-bottom-color: rgba(0,0,0,0.07); }
+[data-theme="light"] .ap-item  { color: var(--text-1); border-bottom-color: rgba(0,0,0,0.04); }
+
+/* Wiki tooltip */
+[data-theme="light"] #wiki-tooltip { background: var(--surface-2); border-color: var(--border-med); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+[data-theme="light"] #wiki-tooltip .wt-name { color: var(--text-2); }
+[data-theme="light"] #wiki-tooltip .wt-msg  { color: var(--text-3); }
+
+/* Changelog */
+[data-theme="light"] .btn-changelog { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.09); color: var(--text-3); }
+[data-theme="light"] .btn-changelog:hover { background: rgba(0,0,0,0.08); color: var(--text-2); }
+[data-theme="light"] .cl-overlay { background: rgba(0,0,0,0.38); }
+[data-theme="light"] .cl-panel { background: var(--surface); border-color: var(--border-med); box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
+[data-theme="light"] .cl-panel h3 { color: #2563eb; }
+[data-theme="light"] .cl-version li { color: var(--text-2); }
+[data-theme="light"] .cl-version span { color: var(--text-3); }
+
+/* Grid preview popup */
+[data-theme="light"] #grid-preview-popup { background: var(--surface); border-color: var(--border-med); box-shadow: 0 12px 36px rgba(0,0,0,0.15); }
+[data-theme="light"] .gpp-corner { background: rgba(0,0,0,0.03); border-color: var(--border); }
+[data-theme="light"] .gpp-col  { background: rgba(20,184,166,0.07); border-color: rgba(20,184,166,0.20); color: #0f766e; }
+[data-theme="light"] .gpp-row  { background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.18); color: #1d4ed8; }
+[data-theme="light"] .gpp-diag { background: rgba(168,85,247,0.07); border-color: rgba(168,85,247,0.20); color: #6b21a8; }
+[data-theme="light"] .gpp-diag2{ background: rgba(233,30,99,0.07);  border-color: rgba(233,30,99,0.20);  color: #9d174d; }
+[data-theme="light"] .gpp-cell { background: var(--surface-2); border-color: var(--border-med); color: var(--text-2); }
+[data-theme="light"] .gpp-cell.cc-hard   { color: #b91c1c; }
+[data-theme="light"] .gpp-cell.cc-medium { color: #92400e; }
+[data-theme="light"] .gpp-cell.cc-easy   { color: #15803d; }
 </style>
+<script>(function(){var t=localStorage.getItem('sudogeo-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})()</script>
 </head>
 <body>
 
-<h1>Sudogeo</h1>
+<button class="theme-toggle" onclick="toggleTheme()" title="Mode clair / sombre" aria-label="Basculer mode clair/sombre"><span id="theme-toggle-icon">☀️</span></button>
+
+<div class="header-wrap">
+  <span class="title-flag" aria-hidden="true">🌍</span>
+  <h1>Sudogeo</h1>
+  <span class="title-flag" aria-hidden="true">🌎</span>
+</div>
 <p class="subtitle">Trouvez un pays respectant la règle de sa ligne <strong>ET</strong> de sa colonne</p>
 
 <div class="diff-bar">
@@ -2689,7 +2894,15 @@ async function loadLbContent(diff) {
 
   const isGlobal = diff === 'global';
   const rows = isGlobal ? await sbGetTop5Global() : await sbGetTop5(diff);
-  if (!rows.length) { el.innerHTML = '<p class="lb-empty">Aucun score enregistré</p>'; return; }
+  if (!rows.length) {
+    const emptyHint = isGlobal ? '' :
+      `<p style="color:#465771;font-size:0.7em;text-align:center;padding:6px 4px 2px">
+         Score max théorique : <strong style="color:#64748b">~${maxScoreEstimate(diff)} pts</strong>
+         <span style="opacity:0.6">(parfait · pays rares · sans erreur)</span>
+       </p>`;
+    el.innerHTML = '<p class="lb-empty">Aucun score enregistré</p>' + emptyHint;
+    return;
+  }
 
   const medals = ['🥇','🥈','🥉'];
   const diffCol  = isGlobal ? `<th>Mode</th>` : '';
@@ -2849,6 +3062,21 @@ function openCl() {
   document.getElementById('cl-overlay').classList.add('show');
 }
 function closeCl() { document.getElementById('cl-overlay').classList.remove('show'); }
+
+// ── Theme toggle ────────────────────────────────────────────
+function initTheme() {
+  const t = document.documentElement.getAttribute('data-theme') || 'dark';
+  const icon = document.getElementById('theme-toggle-icon');
+  if (icon) icon.textContent = t === 'dark' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('sudogeo-theme', t);
+  const icon = document.getElementById('theme-toggle-icon');
+  if (icon) icon.textContent = t === 'dark' ? '☀️' : '🌙';
+}
+initTheme();
 
 // ─── Démarrage ─────────────────────────────────────────────
 document.getElementById('zoo-search').addEventListener('input', e => renderZoo(e.target.value));
