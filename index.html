@@ -872,6 +872,28 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
   h1 { font-size: 1.45em; }
 }
 
+/* ── Share button ─────────────────────────────────────────── */
+.btn-share-grid {
+  background: rgba(255,255,255,0.07);
+  color: var(--text-2);
+  border: 1px solid var(--border-med);
+}
+.btn-share-grid:hover {
+  background: rgba(255,255,255,0.13);
+  color: var(--text-1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+}
+[data-theme="light"] .btn-share-grid {
+  background: var(--surface-2);
+  color: var(--text-2);
+  border-color: var(--border-med);
+}
+[data-theme="light"] .btn-share-grid:hover {
+  background: var(--surface);
+  color: var(--text-1);
+}
+
 /* ── Theme toggle ─────────────────────────────────────────── */
 .theme-toggle {
   position: fixed; top: 14px; right: 14px; z-index: 100;
@@ -1123,7 +1145,7 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
 <div class="cl-overlay" id="cl-overlay" onclick="if(event.target===this)closeCl()">
   <div class="cl-panel" id="cl-panel"></div>
 </div>
-<button class="btn-changelog" onclick="openCl()">v2.2 — changelog</button>
+<button class="btn-changelog" onclick="openCl()">v2.3 — changelog</button>
 
 <div class="zoo-overlay" id="zoo-overlay" onclick="if(event.target===this)closeZoo()">
   <div class="zoo-panel">
@@ -1154,7 +1176,10 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
     <h2>&#127881; Bravo !</h2>
     <p>Vous avez complété la grille avec succès !</p>
     <div id="victory-score"></div>
-    <button class="btn-new" onclick="newGame();document.getElementById('victory').classList.remove('show')">Nouvelle partie</button>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:4px">
+      <button class="btn-new" onclick="newGame();document.getElementById('victory').classList.remove('show')">Nouvelle partie</button>
+      <button id="btn-share-grid" class="btn-share-grid" onclick="doShareGrid()" style="display:none">&#128228; Partager la grille</button>
+    </div>
   </div>
 </div>
 
@@ -1751,7 +1776,8 @@ function setDifficulty(d) {
 let puzzle      = null;
 let states      = Array(9).fill(null);   // null | 'valid' | 'invalid'
 let selectedIdx = -1;                    // case actuellement sélectionnée
-let hintStates  = Array.from({length:9}, () => new Set()); // norms d'animaux déjà montrés par case
+let hintStates    = Array.from({length:9}, () => new Set()); // norms d'animaux déjà montrés par case
+let hintedCountry = Array(9).fill(null); // pays actuellement affiché comme indice par case
 let lastActiveIdx = -1;
 let hintCount     = 0;              // total hints (legacy, pour compatibilité)
 let solveCount    = 0;              // total solver (legacy)
@@ -1787,7 +1813,8 @@ function newGame() {
   if (!puzzle) return;
   _currentGameCounted = false;
   states      = Array(9).fill(null);
-  hintStates  = Array.from({length:9}, () => new Set());
+  hintStates    = Array.from({length:9}, () => new Set());
+  hintedCountry = Array(9).fill(null);
   selectedIdx = -1;
   hintCount     = 0;
   solveCount    = 0;
@@ -1879,6 +1906,7 @@ function renderGrid() {
       });
       inp.addEventListener('input', () => {
         hintStates[idx].clear();
+        hintedCountry[idx] = null;
         if (!inp.value.trim()) { clearCell(idx); acHide(); }
         else acShow(idx, inp.value);
       });
@@ -1926,6 +1954,7 @@ function renderGrid() {
         setCellState(idx, null, '');
         hideCellImage(idx);
         hintStates[idx].clear();
+        hintedCountry[idx] = null;
         updateScore();
         updateHintBtn();
         selectCell(idx);
@@ -2030,6 +2059,7 @@ function validateCell(idx) {
   }
   if (states[idx] !== 'valid') hideCellImage(idx);
   hintStates[idx].clear();
+  hintedCountry[idx] = null;
   updateScore();
   updateHintBtn();
   checkVictory();
@@ -2193,7 +2223,8 @@ function solveCell() {
   if (selectedIdx < 0 || states[selectedIdx] === 'valid') return;
   const cands = getUnusedCands(selectedIdx);
   if (!cands.length) return;
-  const pick = cands[Math.floor(Math.random() * cands.length)];
+  const hinted = hintedCountry[selectedIdx];
+  const pick = (hinted && cands.find(c => c._norm === hinted._norm)) || cands[Math.floor(Math.random() * cands.length)];
   const inp = getInput(selectedIdx);
   if (!inp) return;
   inp.value = pick.nom;
@@ -2213,7 +2244,8 @@ function solveAll() {
       if (cands.length < bestCount) { bestCount = cands.length; bestIdx = idx; bestCands = cands; }
     }
     if (bestIdx < 0 || !bestCands.length) break;
-    const pick = bestCands[Math.floor(Math.random() * bestCands.length)];
+    const hinted = hintedCountry[bestIdx];
+    const pick = (hinted && bestCands.find(c => c._norm === hinted._norm)) || bestCands[Math.floor(Math.random() * bestCands.length)];
     const inp = getInput(bestIdx);
     if (!inp) continue;
     inp.value = pick.nom;
@@ -2255,6 +2287,8 @@ function checkVictory() {
   renderPersonalBest();
   if (isRecord)
     vs.insertAdjacentHTML('afterbegin', `<div class="new-record-badge">🏆 Nouveau record !</div>`);
+  const shareBtn = document.getElementById('btn-share-grid');
+  if (shareBtn) shareBtn.style.display = total >= 1 ? '' : 'none';
   document.getElementById('victory').classList.add('show');
   // Vérifier async si le score entre dans le top 5 mondial
   if (total > 0) Promise.all([sbIsTop5(difficulty, total), sbIsTop5Global(total)])
@@ -2289,6 +2323,7 @@ function giveHint(idx) {
 
   const pick = pool[Math.floor(Math.random() * pool.length)];
   shown.add(pick._norm);
+  hintedCountry[idx] = pick;
 
   hintCount++;
   hintPenalties[idx] += Math.ceil(cellBasePoints(idx) / 2);
@@ -2978,10 +3013,15 @@ async function submitPseudo() {
 // CHANGELOG
 // ═══════════════════════════════════════════════════════════
 const CHANGELOG = [
+  { v:'2.3', date:'29/05/2026', changes:[
+    'Partage de grille : image PNG avec drapeaux, règles et score (bouton dans la fenêtre de victoire)',
+    'Partage disponible uniquement si score ≥ 1 pt',
+  ]},
   { v:'2.2', date:'29/05/2026', changes:[
     'Thème clair : bouton ☀️/🌙 en haut à droite, préférence sauvegardée',
     'Drapeaux 🌍🌎 de part et d\'autre du titre',
     'Classement : score max théorique affiché même sans entrée',
+    'Solver : respecte l\'indice affiché dans la case',
   ]},
   { v:'2.1', date:'29/05/2026', changes:[
     'Correction : la validation de case ne bloque plus (freeze UI corrigé)',
@@ -3067,6 +3107,229 @@ function openCl() {
   document.getElementById('cl-overlay').classList.add('show');
 }
 function closeCl() { document.getElementById('cl-overlay').classList.remove('show'); }
+
+// ── Partage de grille ────────────────────────────────────────
+async function generateShareCanvas() {
+  await document.fonts.ready;
+
+  const cellCountries = Array.from({length: 9}, (_, idx) => {
+    if (states[idx] !== 'valid') return null;
+    const inp = getInput(idx);
+    return inp ? (COUNTRY_INDEX.get(normInput(inp.value)) || null) : null;
+  });
+
+  const flagImgs = await Promise.all(cellCountries.map(c => {
+    if (!c) return Promise.resolve(null);
+    return new Promise(res => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload  = () => res(img);
+      img.onerror = () => res(null);
+      img.src = `https://flagcdn.com/w80/${c.code.toLowerCase()}.png`;
+    });
+  }));
+
+  const sc = computeScore();
+
+  const PAD    = 22;
+  const CW     = 600;
+  const LW     = 116;                        // largeur colonne étiquettes
+  const CELLW  = (CW - 2 * PAD - LW) / 3;   // ~147
+  const COLH   = 60;                          // hauteur ligne en-têtes colonnes
+  const ROWH   = 94;                          // hauteur ligne données
+  const GRIDH  = COLH + 3 * ROWH;            // 342
+  const GRIDY  = 94;
+
+  const DIFF_NAMES = { facile:'Facile', moyen:'Moyen', difficile:'Difficile', avance:'Expert', expert2:'Globe-Trotter', diabolique:'Diabolique' };
+  const scoreRows = [];
+  if (sc.rowBonus)           scoreRows.push({ label:'Bonus lignes complètes',               val:`+${sc.rowBonus} pts`,           pos:true });
+  if (sc.colBonus)           scoreRows.push({ label:'Bonus colonnes complètes',              val:`+${sc.colBonus} pts`,           pos:true });
+  if (sc.gridBonus)          scoreRows.push({ label:'🏆 Bonus grille entière',               val:`+${sc.gridBonus} pts`,          pos:true });
+  if (sc.totalHintPenalty)   scoreRows.push({ label:'Indices utilisés',                      val:`−${sc.totalHintPenalty} pts`,   pos:false });
+  if (sc.totalWrongPenalty)  scoreRows.push({ label:'Réponses invalides',                    val:`−${sc.totalWrongPenalty} pts`,  pos:false });
+  if (sc.botCells)           scoreRows.push({ label:`${sc.botCells} case(s) résolue(s) par solver`, val:'0 pt',             pos:false });
+
+  const ROW_LINE_H = 22;
+  const SCOREH = 52 + Math.max(1, scoreRows.length) * ROW_LINE_H + 4;
+  const CH = GRIDY + GRIDH + 20 + SCOREH + 30;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = CW; canvas.height = CH;
+  const ctx = canvas.getContext('2d');
+
+  // Fond
+  ctx.fillStyle = '#07111e';
+  ctx.fillRect(0, 0, CW, CH);
+  const glow = ctx.createRadialGradient(CW/2, -10, 0, CW/2, -10, 300);
+  glow.addColorStop(0, 'rgba(59,130,246,0.14)');
+  glow.addColorStop(1, 'rgba(59,130,246,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, CW, 300);
+
+  // Helpers
+  const box = (x, y, w, h, r, fill, stroke, lw=1) => {
+    ctx.beginPath(); ctx.roundRect(x, y, w, h, r);
+    if (fill)   { ctx.fillStyle = fill;     ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+  };
+  const wrapText = (text, maxW, font) => {
+    ctx.font = font;
+    const words = text.split(' ');
+    const lines = []; let line = '';
+    for (const w of words) {
+      const t = line ? line + ' ' + w : w;
+      if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; }
+      else line = t;
+    }
+    if (line) lines.push(line);
+    return lines;
+  };
+  const drawLines = (lines, font, color, cx, y, lh) => {
+    ctx.font = font; ctx.fillStyle = color;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    lines.forEach((l, i) => ctx.fillText(l, cx, y + i * lh));
+  };
+
+  // En-tête
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.font = 'bold 26px Inter, system-ui, sans-serif';
+  ctx.fillStyle = '#93c5fd';
+  ctx.fillText('🌍  Sudogeo  🌎', CW/2, 18);
+  ctx.font = '13px Inter, system-ui, sans-serif';
+  ctx.fillStyle = '#8496b0';
+  const dateStr = new Date().toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'});
+  ctx.fillText(`Mode ${DIFF_NAMES[difficulty] || difficulty}  ·  ${dateStr}`, CW/2, 52);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PAD, 80); ctx.lineTo(CW-PAD, 80); ctx.stroke();
+
+  // Grille
+  const gx = PAD, gy = GRIDY;
+  box(gx, gy, LW-3, COLH-3, 6, 'rgba(255,255,255,0.03)', 'rgba(255,255,255,0.08)');
+
+  if (puzzle) {
+    for (let c = 0; c < 3; c++) {
+      const x = gx+LW+c*CELLW+3, w = CELLW-3, h = COLH-3;
+      box(x, gy, w, h, 6, 'rgba(20,184,166,0.13)', 'rgba(20,184,166,0.32)');
+      const ls = wrapText(puzzle.colRules[c].label, w-12, '11px Inter, system-ui, sans-serif');
+      drawLines(ls, '11px Inter, system-ui, sans-serif', '#5eead4', x+w/2, gy+(h-ls.length*13)/2, 13);
+    }
+    for (let r = 0; r < 3; r++) {
+      const rowY = gy + COLH + r * ROWH;
+      const rw = LW-3, rh = ROWH-3;
+      box(gx, rowY+3, rw, rh, 6, 'rgba(59,130,246,0.10)', 'rgba(59,130,246,0.26)');
+      const rl = wrapText(puzzle.rowRules[r].label, rw-12, '11px Inter, system-ui, sans-serif');
+      drawLines(rl, '11px Inter, system-ui, sans-serif', '#93c5fd', gx+rw/2, rowY+3+(rh-rl.length*13)/2, 13);
+
+      for (let c = 0; c < 3; c++) {
+        const idx = r*3+c;
+        const cx = gx+LW+c*CELLW+3, cy = rowY+3;
+        const cw = CELLW-3, ch = ROWH-3;
+        box(cx, cy, cw, ch, 6, 'rgba(34,197,94,0.08)', 'rgba(34,197,94,0.48)');
+
+        const fimg = flagImgs[idx];
+        if (fimg) {
+          const fw=58, fh=40, fx=cx+(cw-fw)/2, fy=cy+8;
+          ctx.save();
+          ctx.beginPath(); ctx.roundRect(fx, fy, fw, fh, 3); ctx.clip();
+          ctx.drawImage(fimg, fx, fy, fw, fh);
+          ctx.restore();
+        }
+
+        const country = cellCountries[idx];
+        if (country) {
+          const nom = country.nom.length > 15 ? country.nom.slice(0,14)+'…' : country.nom;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          ctx.font = '10px Inter, system-ui, sans-serif';
+          ctx.fillStyle = '#c8d5e8';
+          ctx.fillText(nom, cx+cw/2, cy+ch-17);
+          const stars = rarityStars(country).trim();
+          if (stars) {
+            ctx.font = '9px Inter, system-ui, sans-serif';
+            ctx.fillStyle = '#fde68a';
+            ctx.fillText(stars, cx+cw/2, cy+ch-7);
+          }
+        }
+        if (solvedByBot[idx]) {
+          ctx.font = 'bold 8px Inter, system-ui, sans-serif';
+          ctx.fillStyle = 'rgba(255,255,255,0.28)';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          ctx.fillText('BOT', cx+cw/2, cy+3);
+        }
+      }
+    }
+  }
+
+  // Section score
+  const sy0 = gy + GRIDH + 26;
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PAD, sy0-8); ctx.lineTo(CW-PAD, sy0-8); ctx.stroke();
+
+  ctx.font = 'bold 30px Inter, system-ui, sans-serif';
+  ctx.fillStyle = sc.total > 0 ? '#fbbf24' : '#fca5a5';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText(`${sc.total > 0 ? '🏆' : '😬'}  ${sc.total} pts`, CW/2, sy0);
+
+  let sy = sy0 + 46;
+  if (scoreRows.length === 0) {
+    ctx.font = '12px Inter, system-ui, sans-serif';
+    ctx.fillStyle = '#86efac';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText('Score parfait — aucune pénalité', CW/2, sy);
+  } else {
+    for (const row of scoreRows) {
+      ctx.font = '12px Inter, system-ui, sans-serif';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#8496b0';
+      ctx.textAlign = 'left';
+      ctx.fillText(row.label, PAD+12, sy);
+      ctx.fillStyle = row.pos ? '#86efac' : '#fca5a5';
+      ctx.textAlign = 'right';
+      ctx.fillText(row.val, CW-PAD-12, sy);
+      sy += ROW_LINE_H;
+    }
+  }
+
+  // Pied de page
+  ctx.font = '10px Inter, system-ui, sans-serif';
+  ctx.fillStyle = '#2d3f55';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText('Sudogeo', CW/2, CH-16);
+
+  return canvas;
+}
+
+async function doShareGrid() {
+  const btn = document.getElementById('btn-share-grid');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Génération…'; }
+  try {
+    const canvas = await generateShareCanvas();
+    await new Promise((resolve, reject) => {
+      canvas.toBlob(async blob => {
+        try {
+          const file = new File([blob], 'sudogeo.png', {type: 'image/png'});
+          if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
+            const sc = computeScore();
+            await navigator.share({
+              title: 'Sudogeo',
+              text: `J'ai complété une grille Sudogeo en mode ${DIFF_LABELS[difficulty] || difficulty} ! Score : ${sc.total} pts`,
+              files: [file],
+            });
+          } else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'sudogeo.png';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }
+          resolve();
+        } catch(e) { reject(e); }
+      }, 'image/png');
+    });
+  } catch(e) {
+    if (e?.name !== 'AbortError') console.warn('Share error:', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Partager la grille'; }
+  }
+}
 
 // ── Theme toggle ────────────────────────────────────────────
 function initTheme() {
