@@ -1145,7 +1145,7 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
 <div class="cl-overlay" id="cl-overlay" onclick="if(event.target===this)closeCl()">
   <div class="cl-panel" id="cl-panel"></div>
 </div>
-<button class="btn-changelog" onclick="openCl()">v2.4 — changelog</button>
+<button class="btn-changelog" onclick="openCl()">v2.5 — changelog</button>
 
 <div class="zoo-overlay" id="zoo-overlay" onclick="if(event.target===this)closeZoo()">
   <div class="zoo-panel">
@@ -1726,10 +1726,11 @@ function generatePuzzle(diff='moyen') {
     return null; // signale l'échec proprement (newGame() retentera)
   }
   const { minMin, maxMin } = DIFF_CFG[diff] || DIFF_CFG.moyen;
-  // Fallback progressif : respecte toujours au moins 60 % du seuil minimum
-  return tryGenerate(diff, minMin, maxMin, 1200)
-      || tryGenerate(diff, minMin, Infinity, 800)
-      || tryGenerate(diff, Math.max(1, Math.round(minMin * 0.6)), Infinity, 600);
+  // Fallback progressif : relâche les contraintes à chaque étape
+  return tryGenerate(diff, minMin, maxMin, 1500)
+      || tryGenerate(diff, minMin, Infinity, 1000)
+      || tryGenerate(diff, Math.max(1, Math.round(minMin * 0.6)), Infinity, 800)
+      || tryGenerate(diff, 1, Infinity, 500); // filet de sécurité : au moins 1 pays par case
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1828,7 +1829,7 @@ function newGame() {
   // expert2 nécessite 8 groupes distincts : parfois aucune combinaison trouvée en un seul appel.
   // On retente jusqu'à 6× pour absorber les échecs statistiques sans bloquer l'UI.
   let p = null;
-  const maxRetries = difficulty === 'expert2' ? 6 : 3;
+  const maxRetries = difficulty === 'expert2' ? 6 : 5;
   for (let i = 0; i < maxRetries && !p; i++) p = generatePuzzle(difficulty);
   puzzle = p;
 
@@ -3040,6 +3041,11 @@ async function submitPseudo() {
 // CHANGELOG
 // ═══════════════════════════════════════════════════════════
 const CHANGELOG = [
+  { v:'2.5', date:'29/05/2026', changes:[
+    'Correction : changer de difficulté génère toujours une nouvelle grille immédiatement',
+    'Générateur : fallback garanti (≥1 pays/case) pour ne jamais rester bloqué',
+    'Générateur : tentatives augmentées et 5 essais max dans newGame()',
+  ]},
   { v:'2.4', date:'29/05/2026', changes:[
     'Correction : cliquer sur Globe-Trotter ou Diabolique génère toujours la bonne grille',
     'Diabolique : attente du pool pré-calculé avant génération (plus de grille facile/difficile par erreur)',
