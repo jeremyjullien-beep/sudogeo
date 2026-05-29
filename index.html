@@ -972,12 +972,22 @@ h1 { font-size: 1.72em; }
   .title-flag   { font-size: 1.15em; }
   .subtitle     { font-size: 0.7em; margin-bottom: 6px; }
   .btn-mode     { padding: 4px 9px; font-size: 0.69em; }
-  .btn-diff     { padding: 4px 8px; font-size: 0.69em; }
+  .btn-diff     { padding: 4px 7px; font-size: 0.69em; }
   .controls     { gap: 5px; margin-bottom: 4px; }
   .controls-solver { margin-bottom: 5px; }
   .btn-new, .btn-hint { padding: 6px 10px; font-size: 0.78em; }
   .game-stats   { margin-bottom: 3px; }
   .grid-wrap    { margin-top: 4px; }
+}
+
+/* Labels courts sur très petits écrans pour que tous les boutons tiennent */
+@media (max-width: 440px) {
+  .btn-diff[data-short] { font-size: 0; padding: 4px 7px; }
+  .btn-diff[data-short]::after {
+    content: attr(data-short);
+    font-size: 10.5px;
+    font-weight: 600;
+  }
 }
 
 /* ── Theme toggle ─────────────────────────────────────────── */
@@ -1202,8 +1212,8 @@ h1 { font-size: 1.72em; }
   <button class="btn-diff moyen active" onclick="setDifficulty('moyen')">&#129418; Moyen</button>
   <button class="btn-diff difficile"  onclick="setDifficulty('difficile')">&#128293; Difficile</button>
   <button class="btn-diff avance"     onclick="setDifficulty('avance')">&#10038; Expert</button>
-  <button class="btn-diff expert2"      onclick="setDifficulty('expert2')">&#127758; Globe-Trotter</button>
-  <button class="btn-diff diabolique"  onclick="setDifficulty('diabolique')">&#128520; Diabolique</button>
+  <button class="btn-diff expert2"    data-short="🌎 Globe"  onclick="setDifficulty('expert2')">&#127758; Globe-Trotter</button>
+  <button class="btn-diff diabolique" data-short="😈 Diab."  onclick="setDifficulty('diabolique')">&#128520; Diabolique</button>
 </div>
 <div class="controls">
   <button class="btn-new"  onclick="newGame()">&#128260; Nouvelle grille</button>
