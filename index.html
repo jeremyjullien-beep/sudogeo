@@ -1229,6 +1229,75 @@ h1 { font-size: 1.72em; }
 [data-theme="light"] .gpp-cell.cc-hard   { color: #b91c1c; }
 [data-theme="light"] .gpp-cell.cc-medium { color: #92400e; }
 [data-theme="light"] .gpp-cell.cc-easy   { color: #15803d; }
+
+/* ── Admin panel ──────────────────────────────────────────── */
+.btn-admin {
+  position: fixed; bottom: 10px; left: 12px; z-index: 10;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text-3);
+  font-size: 0.68em; padding: 3px 9px; cursor: pointer;
+}
+.btn-admin:hover { background: rgba(255,255,255,0.09); color: var(--text-2); }
+
+.admin-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75); z-index: 500;
+  align-items: flex-start; justify-content: center;
+  padding: 20px 12px; backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.admin-overlay.show { display: flex; }
+.admin-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-med);
+  border-radius: 14px;
+  width: 100%; max-width: 960px; max-height: 88vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.65);
+}
+.admin-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.admin-head h3 { color: #60a5fa; font-weight: 700; font-size: 0.95em; }
+.admin-close {
+  background: none; border: none; color: var(--text-3);
+  font-size: 1.2em; cursor: pointer; border-radius: 6px; padding: 2px 5px;
+}
+.admin-close:hover { color: var(--text-1); background: rgba(255,255,255,0.08); }
+.admin-auth-wrap { padding: 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+.admin-pwd-row { display: flex; gap: 8px; align-items: center; }
+.admin-pwd-inp {
+  flex: 1; background: rgba(255,255,255,0.07);
+  border: 1px solid var(--border-med); border-radius: 8px;
+  color: var(--text-1); padding: 8px 12px; font-size: 0.85em; outline: none;
+}
+.admin-pwd-inp:focus { border-color: rgba(59,130,246,0.5); }
+.btn-admin-login {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 8px; padding: 8px 16px; font-size: 0.85em; cursor: pointer; font-weight: 600;
+}
+.btn-admin-login:hover { background: #2563eb; }
+.admin-data { display: none; overflow-y: auto; flex: 1; }
+.admin-stats-bar {
+  display: flex; gap: 14px; padding: 10px 16px;
+  border-bottom: 1px solid var(--border); flex-wrap: wrap; flex-shrink: 0;
+}
+.admin-stats-bar span { font-size: 0.82em; color: var(--text-2); }
+.admin-stats-bar strong { color: var(--text-1); }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 0.79em; }
+.admin-table th {
+  color: var(--text-3); font-weight: 600; padding: 7px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06); text-align: left; white-space: nowrap;
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+}
+.admin-table td {
+  padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.03);
+  color: var(--text-1); vertical-align: middle;
+}
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: rgba(255,255,255,0.025); }
 </style>
 <script>(function(){var t=localStorage.getItem('sudogeo-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})()</script>
 </head>
@@ -1293,7 +1362,29 @@ h1 { font-size: 1.72em; }
 <div class="cl-overlay" id="cl-overlay" onclick="if(event.target===this)closeCl()">
   <div class="cl-panel" id="cl-panel"></div>
 </div>
-<button class="btn-changelog" onclick="openCl()">v2.7 — changelog</button>
+<button class="btn-changelog" onclick="openCl()">v2.8 — changelog</button>
+<button class="btn-admin" onclick="openAdmin()">Console</button>
+
+<!-- Admin overlay -->
+<div class="admin-overlay" id="admin-overlay" onclick="if(event.target===this)closeAdmin()">
+  <div class="admin-panel">
+    <div class="admin-head">
+      <h3>Console</h3>
+      <button class="admin-close" onclick="closeAdmin()">&#10005;</button>
+    </div>
+    <div class="admin-auth-wrap" id="admin-auth-wrap">
+      <div class="admin-pwd-row">
+        <input type="password" id="admin-pwd-inp" class="admin-pwd-inp"
+               placeholder="Mot de passe admin…"
+               onkeydown="if(event.key==='Enter')adminLogin()">
+        <button class="btn-admin-login" onclick="adminLogin()">Connexion</button>
+      </div>
+      <div id="admin-login-err" style="font-size:0.78em;color:#fca5a5;min-height:18px"></div>
+    </div>
+    <div class="admin-stats-bar" id="admin-stats-bar" style="display:none"></div>
+    <div class="admin-data" id="admin-data"></div>
+  </div>
+</div>
 
 <div class="zoo-overlay" id="zoo-overlay" onclick="if(event.target===this)closeZoo()">
   <div class="zoo-panel">
@@ -1416,7 +1507,7 @@ function inReg(p, r) {
 function buildCountry(row) {
   const [code, nom, continent, region, pop_s, sup_s,
          cote_s, enc_s, ile_s, voisins_s,
-         langue, nb_lang_s, , ue_s, , climat,
+         langue, nb_lang_s, monnaie_s, ue_s, , climat,
          flag_col_s, flag_multi_s, flag_el_s,
          religion, indice_csv] = row;
 
@@ -1455,6 +1546,7 @@ function buildCountry(row) {
     contientA: cnt('a'), contientE: cnt('e'), contientI: cnt('i'),
     contientO: cnt('o'), contientU: cnt('u'),
     nombreVoyelles, nb_mots,
+    monnaie: monnaie_s || '',
     indice: indice_csv || `${region} — climat ${climat}`,
     _norm
   };
@@ -1479,11 +1571,11 @@ async function loadCountries() {
 // g = famille de règle. Au plus une règle par famille dans une grille.
 //   "len"  longueur du nom   "nv"   nombre de voyelles
 //   "lettre" présence d'une voyelle   "pl"   première lettre   "dl"  dernière lettre
-//   "cl"   classe biologique   "re"   régime alimentaire   "pt"   pattes
-//   "vole" vol   "nage" nage   "dom" domestique   "noc" nocturne   "ven" venimeux
-//   "pond" ponte   "pel" pelage   "men" menacé   "fra" présent France
-//   "sol"  solitaire   "mig" migrateur   "nb"  nb mots   "aq"  aquatique
-//   "coul" couleur principale
+//   "cont" continent   "reg"  région   "pop"  population   "sup"  superficie
+//   "cote" côte maritime   "enc"  enclavé   "ile"  île   "vois0/1/5" voisins
+//   "clim" climat   "ue"   UE   "lang" langue   "nblang" nb langues
+//   "rel"  religion   "fc_*" couleur drapeau   "fe_*" élément drapeau   "fmc" multicolore
+//   "monnaie" devise officielle
 const RULES = [
   // ── Nom ────────────────────────────────────────────────────
   { label:"Nom de 4 lettres ou moins",  g:"len", fn: p => p.lettres <= 4 },
@@ -1608,6 +1700,14 @@ const RULES = [
   { label:"Drapeau avec des armoiries", g:"fe_ar", fn: p => p.flag_elements.some(e => e.includes('armoiries')) },
   { label:"Drapeau avec un aigle",      g:"fe_ai", fn: p => p.flag_elements.some(e => e.includes('aigle')) },
   { label:"Drapeau multicolore (4+ couleurs)", g:"fmc", fn: p => p.drapeau_multicolore },
+  // ── Monnaie ────────────────────────────────────────────────
+  { label:"Utilise l'Euro",                 g:"monnaie", fn: p => p.monnaie === 'Euro' },
+  { label:"Utilise le Franc CFA",           g:"monnaie", fn: p => p.monnaie === 'Franc CFA' },
+  { label:"Utilise le Dollar américain",    g:"monnaie", fn: p => p.monnaie === 'Dollar américain' },
+  { label:"Monnaie nommée 'Dinar'",         g:"monnaie", fn: p => p.monnaie.includes('Dinar') },
+  { label:"Monnaie nommée 'Roupie'",        g:"monnaie", fn: p => p.monnaie.includes('Roupie') },
+  { label:"Monnaie contenant 'Dollar'",     g:"monnaie", fn: p => p.monnaie.includes('Dollar') },
+  { label:"Monnaie contenant 'Franc'",      g:"monnaie", fn: p => p.monnaie.includes('Franc') },
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -2031,6 +2131,8 @@ let hintPenalties  = Array(9).fill(0); // pénalité hint accumulée par case
 let resetPenalties = Array(9).fill(0); // pénalité retrait d'une case validée
 let wrongPenalties = Array(9).fill(0); // pénalité réponse invalide
 let solvedByBot    = Array(9).fill(false); // cases résolues par le solver
+let _gameStartTime = null;              // timestamp du premier essai (ms)
+let _userIpData    = null;              // données IP géolocalisées (ipapi.co)
 
 // ═══════════════════════════════════════════════════════════
 // SÉLECTION DE CASE
@@ -2069,6 +2171,7 @@ function newGame() {
   }
   if (noEl) noEl.textContent = '';
   _currentGameCounted = false;
+  _gameStartTime = null;
   states      = Array(cellCount()).fill(null);
   hintStates    = Array.from({length:cellCount()}, () => new Set());
   hintedCountry = Array(cellCount()).fill(null);
@@ -2275,6 +2378,7 @@ function validateCell(idx) {
   // Compter la partie dès le premier vrai essai
   if (!_currentGameCounted) {
     _currentGameCounted = true;
+    _gameStartTime = Date.now();
     incStat('started', lbKey(difficulty));
     renderStats(); renderPersonalBest();
     sbIncrementGlobal().then(renderGlobalCount);
@@ -2546,6 +2650,7 @@ function checkVictory() {
     </div>`;
   incStat('completed', lbKey(difficulty));
   renderStats();
+  sbRecordHistory(total);
   const isRecord = saveBest(lbKey(difficulty), total);
   renderPersonalBest();
   if (isRecord)
@@ -2874,6 +2979,95 @@ function renderZoo(rawQ) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// PANNEAU ADMIN
+// ═══════════════════════════════════════════════════════════
+function openAdmin() {
+  document.getElementById('admin-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('admin-pwd-inp')?.focus(), 60);
+}
+function closeAdmin() {
+  document.getElementById('admin-overlay').classList.remove('show');
+}
+
+async function adminLogin() {
+  const pwd = document.getElementById('admin-pwd-inp').value;
+  if (!pwd) return;
+  const errEl = document.getElementById('admin-login-err');
+  errEl.textContent = 'Connexion…';
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/get_history_admin`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_token: pwd })
+    });
+    if (!r.ok) throw new Error('auth');
+    const rows = await r.json();
+    errEl.textContent = '';
+    document.getElementById('admin-auth-wrap').style.display = 'none';
+    renderAdminData(rows);
+    document.getElementById('admin-stats-bar').style.display = '';
+    document.getElementById('admin-data').style.display = '';
+  } catch {
+    errEl.textContent = 'Mot de passe incorrect ou erreur serveur.';
+  }
+}
+
+function renderAdminData(rows) {
+  const diffL = {
+    facile:'Facile', moyen:'Moyen', difficile:'Difficile',
+    avance:'Expert', expert2:'Globe-Trotter', diabolique:'Diabolique',
+    facile_r:'Facile ⚡', moyen_r:'Moyen ⚡', difficile_r:'Difficile ⚡',
+    avance_r:'Expert ⚡', expert2_r:'Globe ⚡', diabolique_r:'Diabo ⚡',
+  };
+  const fmt = d => new Date(d).toLocaleString('fr-FR', {dateStyle:'short', timeStyle:'short'});
+  const fmtDur = s => s != null ? `${Math.floor(s/60)}m${(s%60).toString().padStart(2,'0')}s` : '—';
+
+  // Stats bar
+  const uniqueIPs = new Set(rows.map(r => r.ip_address).filter(Boolean)).size;
+  const avgScore  = rows.length
+    ? Math.round(rows.reduce((s,r) => s + (r.score||0), 0) / rows.length)
+    : 0;
+  const withSolver = rows.filter(r => r.solver_used).length;
+  document.getElementById('admin-stats-bar').innerHTML = `
+    <span>🎮 <strong>${rows.length}</strong> partie${rows.length>1?'s':''}</span>
+    <span>👥 <strong>${uniqueIPs}</strong> IP${uniqueIPs>1?'s':''} uniques</span>
+    <span>📊 Score moyen : <strong>${avgScore} pts</strong></span>
+    <span>🤖 Solver : <strong>${withSolver}</strong></span>`;
+
+  // Table
+  if (!rows.length) {
+    document.getElementById('admin-data').innerHTML =
+      '<p style="padding:24px;color:var(--text-3);text-align:center">Aucun historique enregistré.</p>';
+    return;
+  }
+  document.getElementById('admin-data').innerHTML = `
+    <div style="overflow-x:auto">
+      <table class="admin-table">
+        <thead><tr>
+          <th>Date</th><th>IP</th><th>Région</th><th>Pays</th>
+          <th>Difficulté</th><th>Score</th><th>Indices</th><th>Solver</th><th>Durée</th>
+        </tr></thead>
+        <tbody>${rows.map(r => `<tr>
+          <td style="white-space:nowrap;color:var(--text-3)">${fmt(r.created_at)}</td>
+          <td style="font-family:monospace;font-size:0.86em">${escHtml(r.ip_address||'—')}</td>
+          <td style="color:var(--text-2);font-size:0.86em;white-space:nowrap">${escHtml(r.ip_region||'—')}</td>
+          <td style="font-size:0.86em">${escHtml(r.ip_country||'—')}</td>
+          <td style="font-size:0.82em;white-space:nowrap">${escHtml(diffL[r.difficulty]||r.difficulty||'—')}</td>
+          <td><strong style="${(r.score||0)>0?'color:#fbbf24':'color:#fca5a5'}">${r.score??'—'} pts</strong></td>
+          <td style="color:var(--text-3);text-align:center">${r.hints_used??'—'}</td>
+          <td style="text-align:center">${r.solver_used
+            ? '<span style="color:#fca5a5">Oui</span>'
+            : '<span style="color:#86efac">Non</span>'}</td>
+          <td style="color:var(--text-3);white-space:nowrap">${fmtDur(r.duration_sec)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
 // RECORD PERSONNEL (localStorage)
 // ═══════════════════════════════════════════════════════════
 // ── Supabase (compteur global) ──────────────────────────────
@@ -3054,6 +3248,45 @@ document.addEventListener('click', e => {
   const p = document.getElementById('grid-preview-popup');
   if (p && !p.contains(e.target) && !e.target.classList.contains('lb-preview-btn')) closeGridPreview();
 });
+
+// ── Géolocalisation IP (cache en mémoire) ──────────────────────
+async function fetchUserIP() {
+  try {
+    const r = await fetch('https://ipapi.co/json/');
+    if (r.ok) _userIpData = await r.json();
+  } catch { /* fail silently */ }
+}
+
+// ── Enregistrement historique des parties ──────────────────────
+async function sbRecordHistory(score) {
+  try {
+    const duration = _gameStartTime ? Math.round((Date.now() - _gameStartTime) / 1000) : null;
+    const ip       = _userIpData;
+    const region   = ip
+      ? [ip.city, ip.region].filter(Boolean).join(', ')
+      : null;
+    await fetch(`${SB_URL}/rest/v1/game_history`, {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`,
+        'Content-Type': 'application/json', Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({
+        ip_address:   ip?.ip        || null,
+        ip_region:    region        || null,
+        ip_country:   ip?.country_name || null,
+        difficulty:   lbKey(difficulty),
+        mode:         quickMode ? 'quick' : 'classic',
+        score,
+        hints_used:   hintCount,
+        solver_used:  solveCount > 0,
+        grid_data:    puzzleToGridData(puzzle),
+        duration_sec: duration,
+        user_agent:   navigator.userAgent.slice(0, 250),
+      })
+    });
+  } catch { /* fail silently */ }
+}
 
 async function sbSubmitScore(diff, pseudo, score, gridData) {
   await fetch(`${SB_URL}/rest/v1/leaderboard`, {
@@ -3291,6 +3524,11 @@ async function submitPseudo() {
 // CHANGELOG
 // ═══════════════════════════════════════════════════════════
 const CHANGELOG = [
+  { v:'2.8', date:'30/05/2026', changes:[
+    'Nouvelles règles : monnaie officielle (Euro, Franc CFA, Dollar américain, Dinar, Roupie…)',
+    'Historique des parties enregistré côté serveur (IP, région, score, durée)',
+    'Panneau admin protégé par mot de passe pour consulter l\'historique',
+  ]},
   { v:'2.7', date:'29/05/2026', changes:[
     'Interface : zone du haut compactée, la grille remonte d\'environ 120px',
     'Mode/difficulté fusionnés visuellement en un seul bloc',
@@ -3696,6 +3934,7 @@ initTheme();
 // ─── Démarrage ─────────────────────────────────────────────
 document.getElementById('zoo-search').addEventListener('input', e => renderZoo(e.target.value));
 loadCountries().then(() => { buildDiabRules(); newGame(); renderPersonalBest(); renderStats(); renderGlobalCount(); });
+fetchUserIP();
 initInstallButton();
 
 // ── Service Worker (PWA) ────────────────────────────────────
