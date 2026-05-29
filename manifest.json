@@ -1,0 +1,16 @@
+{
+  "name": "Sudogeo",
+  "short_name": "Sudogeo",
+  "description": "Trouvez un pays respectant la règle de sa ligne ET de sa colonne",
+  "start_url": "/sudogeo/",
+  "scope": "/sudogeo/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07111e",
+  "theme_color": "#07111e",
+  "lang": "fr",
+  "icons": [
+    { "src": "/sudogeo/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/sudogeo/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
