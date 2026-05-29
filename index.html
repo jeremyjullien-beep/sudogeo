@@ -826,7 +826,7 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
 <div class="cl-overlay" id="cl-overlay" onclick="if(event.target===this)closeCl()">
   <div class="cl-panel" id="cl-panel"></div>
 </div>
-<button class="btn-changelog" onclick="openCl()">v1.7 — changelog</button>
+<button class="btn-changelog" onclick="openCl()">v1.8 — changelog</button>
 
 <div class="zoo-overlay" id="zoo-overlay" onclick="if(event.target===this)closeZoo()">
   <div class="zoo-panel">
@@ -1939,7 +1939,8 @@ function checkVictory() {
     vs.insertAdjacentHTML('afterbegin', `<div class="new-record-badge">🏆 Nouveau record !</div>`);
   document.getElementById('victory').classList.add('show');
   // Vérifier async si le score entre dans le top 5 mondial
-  if (total > 0) sbIsTop5(difficulty, total).then(ok => { if (ok) showPseudoForm(total, difficulty); });
+  if (total > 0) Promise.all([sbIsTop5(difficulty, total), sbIsTop5Global(total)])
+    .then(([inDiff, inGlobal]) => { if (inDiff || inGlobal) showPseudoForm(total, difficulty, inGlobal); });
 }
 
 // ─── Indice textuel (cycle sur les animaux valides) ────────
@@ -2296,9 +2297,35 @@ async function sbGetTop5(diff) {
   } catch { return []; }
 }
 
+async function sbGetTop5Global() {
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/leaderboard?order=score.desc&limit=5&select=pseudo,score,difficulty,created_at`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+    );
+    return await r.json();
+  } catch { return []; }
+}
+
 async function sbIsTop5(diff, score) {
   const top = await sbGetTop5(diff);
   return top.length < 5 || score > top[top.length - 1].score;
+}
+
+async function sbIsTop5Global(score) {
+  const top = await sbGetTop5Global();
+  return top.length < 5 || score > top[top.length - 1].score;
+}
+
+function maxScoreEstimate(diff) {
+  const mult = DIFF_MULT[diff] || 1.0;
+  const minN = { facile:15, moyen:8, difficile:4, avance:3, expert2:2, diabolique:1 }[diff] || 5;
+  const base  = Math.max(1, Math.round(7 / Math.sqrt(minN)));
+  const baseM = Math.max(1, Math.round(base * mult));
+  const maxCell  = Math.round(baseM * 3.9);
+  const bonusPer = Math.max(1, Math.round(4 * mult));
+  const gridB    = Math.max(1, Math.round(12 * mult));
+  return 9 * maxCell + 3 * bonusPer + 3 * bonusPer + gridB;
 }
 
 async function sbSubmitScore(diff, pseudo, score) {
@@ -2432,7 +2459,8 @@ function closeLb() { document.getElementById('lb-overlay').classList.remove('sho
 
 function renderLbTabs() {
   const el = document.getElementById('lb-tabs');
-  el.innerHTML = Object.entries(DIFF_LABELS).map(([k,v]) =>
+  const tabs = [...Object.entries(DIFF_LABELS), ['global', '🌍 Global']];
+  el.innerHTML = tabs.map(([k,v]) =>
     `<button class="lb-tab${k===_lbDiff?' active':''}" onclick="loadLbContent('${k}')">${v}</button>`
   ).join('');
 }
@@ -2442,30 +2470,48 @@ async function loadLbContent(diff) {
   renderLbTabs();
   const el = document.getElementById('lb-content');
   el.innerHTML = '<p class="lb-empty">Chargement…</p>';
-  const rows = await sbGetTop5(diff);
+
+  const isGlobal = diff === 'global';
+  const rows = isGlobal ? await sbGetTop5Global() : await sbGetTop5(diff);
   if (!rows.length) { el.innerHTML = '<p class="lb-empty">Aucun score enregistré</p>'; return; }
+
   const medals = ['🥇','🥈','🥉'];
+  const diffCol = isGlobal
+    ? `<th>Mode</th>` : '';
+  const diffCell = isGlobal
+    ? r => `<td style="color:#8496b0;font-size:0.82em">${DIFF_LABELS[r.difficulty]||r.difficulty}</td>` : () => '';
+
+  const maxHint = isGlobal ? '' :
+    `<p style="color:#465771;font-size:0.7em;text-align:center;padding:6px 4px 2px">
+       Score max théorique : <strong style="color:#64748b">~${maxScoreEstimate(diff)} pts</strong>
+       <span style="opacity:0.6">(parfait · pays rares · sans erreur)</span>
+     </p>`;
+
   el.innerHTML = `<table class="lb-table">
-    <thead><tr><th>#</th><th>Pseudo</th><th>Score</th><th>Date</th></tr></thead>
+    <thead><tr><th>#</th><th>Pseudo</th>${diffCol}<th>Score</th><th>Date</th></tr></thead>
     <tbody>${rows.map((r,i) => `<tr>
       <td class="${i<3?'lb-rank-'+(i+1):''}">${medals[i]||i+1}</td>
       <td>${escHtml(r.pseudo)}</td>
+      ${diffCell(r)}
       <td><strong>${r.score} pts</strong></td>
       <td style="color:#475569;font-size:0.85em">${new Date(r.created_at).toLocaleDateString('fr-FR')}</td>
-    </tr>`).join('')}</tbody></table>`;
+    </tr>`).join('')}</tbody></table>${maxHint}`;
 }
 
 // ── Formulaire pseudo dans la fenêtre de victoire ────────────
 let _pendingScore = 0, _pendingDiff = '';
 
-function showPseudoForm(score, diff) {
+function showPseudoForm(score, diff, inGlobal = false) {
   _pendingScore = score; _pendingDiff = diff;
   const label = DIFF_LABELS[diff] || diff;
   const vs = document.getElementById('victory-score');
   if (vs.querySelector('.pseudo-section')) return;
+  const msg = inGlobal
+    ? `🌍 Top 5 <strong>${label}</strong> et Top 5 <strong>mondial toutes catégories</strong> !`
+    : `🏆 Top 5 en mode <strong>${label}</strong> !`;
   vs.insertAdjacentHTML('beforeend', `
     <div class="pseudo-section">
-      <p>🏆 Vous entrez dans le <strong>Top 5</strong> en mode <strong>${label}</strong> !</p>
+      <p>${msg}</p>
       <input id="pseudo-inp" type="text" maxlength="20" placeholder="Votre pseudo (2–20 car.)…"
              oninput="document.getElementById('pseudo-err').textContent=''">
       <div class="pseudo-error" id="pseudo-err"></div>
@@ -2495,6 +2541,11 @@ async function submitPseudo() {
 // CHANGELOG
 // ═══════════════════════════════════════════════════════════
 const CHANGELOG = [
+  { v:'1.8', date:'29/05/2026', changes:[
+    'Classement mondial toutes catégories (onglet 🌍 Global)',
+    'Score max théorique affiché sous chaque classement par difficulté',
+    'Notification Top 5 mondial en plus du Top 5 par mode',
+  ]},
   { v:'1.7', date:'29/05/2026', changes:[
     'Score négatif possible si trop d\'erreurs sur une partie',
     'Annuler une case retire exactement les points gagnés (sans pénalité supplémentaire)',
