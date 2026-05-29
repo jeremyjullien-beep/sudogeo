@@ -919,6 +919,47 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
   .btn-mode { padding: 5px 8px; font-size: 0.72em; }
 }
 
+/* ── Install PWA button ───────────────────────────────────── */
+#install-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 5px; margin-bottom: 7px;
+  animation: fadeInDown 0.4s ease;
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.btn-install {
+  background: rgba(59,130,246,0.10);
+  border: 1px solid rgba(59,130,246,0.28);
+  color: #93c5fd;
+  border-radius: 20px;
+  padding: 5px 18px;
+  font-size: 0.76em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s;
+}
+.btn-install:hover {
+  background: rgba(59,130,246,0.20);
+  border-color: rgba(59,130,246,0.50);
+}
+.ios-hint {
+  font-size: 0.72em;
+  color: var(--text-3);
+  text-align: center;
+  line-height: 1.4;
+}
+.ios-hint strong { color: var(--text-2); }
+[data-theme="light"] .btn-install {
+  background: rgba(37,99,235,0.07);
+  border-color: rgba(37,99,235,0.25);
+  color: #2563eb;
+}
+[data-theme="light"] .btn-install:hover {
+  background: rgba(37,99,235,0.14);
+}
+
 /* ── Share button ─────────────────────────────────────────── */
 .btn-share-grid {
   background: rgba(255,255,255,0.07);
@@ -1271,6 +1312,13 @@ h1 { font-size: 1.72em; }
     <div class="zoo-list" id="zoo-list"></div>
   </div>
 </div>
+<div id="install-wrap" style="display:none">
+  <button id="btn-install" class="btn-install" onclick="installApp()">&#128242; Ajouter en tant qu'appli</button>
+  <p id="ios-hint" class="ios-hint" style="display:none">
+    Safari → bouton Partager &#128229; → <strong>Sur l'écran d'accueil</strong>
+  </p>
+</div>
+
 <div class="score" id="score">0 / 9 cases validées</div>
 <div class="potential-score" id="potential-score"></div>
 <div class="personal-best" id="personal-best"></div>
@@ -3596,6 +3644,42 @@ async function doShareGrid() {
     if (e?.name !== 'AbortError') console.warn('Share error:', e);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '📤 Partager la grille'; }
+  }
+}
+
+// ── PWA Install ─────────────────────────────────────────────
+let _installPrompt = null;
+const _isIOS        = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+const _isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+
+if (!_isStandalone) {
+  if (_isIOS) {
+    // iOS : pas d'événement beforeinstallprompt → montrer instructions Safari
+    document.getElementById('install-wrap').style.display = '';
+    document.getElementById('ios-hint').style.display     = '';
+  }
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _installPrompt = e;
+    document.getElementById('install-wrap').style.display = '';
+  });
+}
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-wrap').style.display = 'none';
+  _installPrompt = null;
+});
+
+function installApp() {
+  if (_installPrompt) {
+    _installPrompt.prompt();
+    _installPrompt.userChoice.then(({ outcome }) => {
+      if (outcome === 'accepted')
+        document.getElementById('install-wrap').style.display = 'none';
+      _installPrompt = null;
+    });
+  } else if (_isIOS) {
+    const hint = document.getElementById('ios-hint');
+    hint.style.display = hint.style.display === 'none' ? '' : 'none';
   }
 }
 
