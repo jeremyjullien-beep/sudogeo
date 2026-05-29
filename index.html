@@ -743,8 +743,10 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
   line-height: 1.3;
 }
 /* 4 cols par défaut (pas de diag2), 5 cols si diag2 */
-.gpp-grid-4 { grid-template-columns: 72px repeat(3, 82px); }
-.gpp-grid-5 { grid-template-columns: 72px repeat(3, 82px) 72px; }
+.gpp-grid-4    { grid-template-columns: 72px repeat(3, 82px); }
+.gpp-grid-5    { grid-template-columns: 60px repeat(3, 72px) 60px; }
+.gpp-grid-3    { grid-template-columns: 72px repeat(2, 110px); }
+.gpp-grid-3-d2 { grid-template-columns: 72px repeat(2, 96px) 72px; }
 .gpp-corner {
   background: rgba(255,255,255,0.04); border: 1px solid var(--border);
   border-radius: 5px; padding: 4px 5px; text-align: center;
@@ -1246,7 +1248,7 @@ h1 { font-size: 1.72em; }
 <div class="cl-overlay" id="cl-overlay" onclick="if(event.target===this)closeCl()">
   <div class="cl-panel" id="cl-panel"></div>
 </div>
-<button class="btn-changelog" onclick="openCl()">v2.6 — changelog</button>
+<button class="btn-changelog" onclick="openCl()">v2.7 — changelog</button>
 
 <div class="zoo-overlay" id="zoo-overlay" onclick="if(event.target===this)closeZoo()">
   <div class="zoo-panel">
@@ -2912,8 +2914,14 @@ function showGridPreview(evt, id) {
   if (!raw) return;
   const d = JSON.parse(raw);
 
+  const nRows = d.rows.length;
+  const nCols = d.cols.length;
   const hasDiag2 = !!d.diag2;
-  const colsCls  = hasDiag2 ? 'gpp-grid-5' : 'gpp-grid-4';
+
+  // Classe CSS de la grille preview selon la taille (3×3 ou 2×2) et les diagonales
+  const colsCls = nRows === 2
+    ? (hasDiag2 ? 'gpp-grid-3-d2' : 'gpp-grid-3')
+    : (hasDiag2 ? 'gpp-grid-5'    : 'gpp-grid-4');
 
   // Coin haut-gauche : règle ↘ ou vide
   const cornerTL = d.diag
@@ -2928,18 +2936,18 @@ function showGridPreview(evt, id) {
   // Colonnes
   const colsHtml = d.cols.map(c => `<div class="gpp-col">${c}</div>`).join('');
 
-  // Lignes + cases
+  // Lignes + cases (taille dynamique)
   let rowsHtml = '';
-  for (let r = 0; r < 3; r++) {
+  for (let r = 0; r < nRows; r++) {
     rowsHtml += `<div class="gpp-row">${d.rows[r]}</div>`;
-    for (let c = 0; c < 3; c++) {
-      const idx = r * 3 + c;
+    for (let c = 0; c < nCols; c++) {
+      const idx = r * nCols + c;
       const n   = d.counts[idx];
       const cls = n >= 10 ? 'cc-easy' : n >= 4 ? 'cc-medium' : 'cc-hard';
-      // Bordures diagonales
-      const onD1 = d.diag  && (idx === 0 || idx === 4 || idx === 8) ? ' diag1' : '';
-      const onD2 = d.diag2 && (idx === 2 || idx === 4 || idx === 6) ? ' diag2' : '';
+      const onD1 = d.diag  && (Math.floor(idx/nCols) === idx%nCols)             ? ' diag1' : '';
+      const onD2 = d.diag2 && (Math.floor(idx/nCols) + idx%nCols === nCols - 1) ? ' diag2' : '';
       const played = d.played[idx];
+      if (!played) { rowsHtml += `<div class="gpp-cell${onD1}${onD2}">?</div>`; continue; }
       const flagUrl = `https://flagcdn.com/w40/${played.code.toLowerCase()}.png`;
       rowsHtml += `<div class="gpp-cell played${onD1}${onD2}" title="${played.nom} — ${n} réponse${n>1?'s':''}">
         <img class="gpp-flag" src="${flagUrl}" alt="${played.code}" loading="lazy">
@@ -2947,7 +2955,6 @@ function showGridPreview(evt, id) {
         <span class="gpp-cbadge ${cls}">${n}</span>
       </div>`;
     }
-    // Colonne vide (espace) sur les lignes si hasDiag2 (5e colonne)
     if (hasDiag2) rowsHtml += `<div class="gpp-corner"></div>`;
   }
 
@@ -3216,6 +3223,11 @@ async function submitPseudo() {
 // CHANGELOG
 // ═══════════════════════════════════════════════════════════
 const CHANGELOG = [
+  { v:'2.7', date:'29/05/2026', changes:[
+    'Interface : zone du haut compactée, la grille remonte d\'environ 120px',
+    'Mode/difficulté fusionnés visuellement en un seul bloc',
+    'Correction : prévisualisation de grille dans le classement compatible mode Rapide',
+  ]},
   { v:'2.6', date:'29/05/2026', changes:[
     'Nouveau : Mode Rapide ⚡ — grille 2×2, 4 cases à remplir au lieu de 9',
     'Tous les niveaux de difficulté disponibles en mode Rapide',
