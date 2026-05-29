@@ -929,6 +929,57 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
   color: var(--text-1);
 }
 
+/* ── Compact top section ─────────────────────────────────── */
+body { padding-top: 12px; }
+
+h1 { font-size: 1.72em; }
+.header-wrap { margin-bottom: 2px; gap: 10px; }
+.title-flag   { font-size: 1.35em; }
+.subtitle     { font-size: 0.75em; margin-bottom: 8px; line-height: 1.35; }
+
+/* Mode-bar + diff-bar visuellement fusionnés */
+.mode-bar {
+  border-radius: 10px 10px 0 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0;
+  padding: 3px;
+}
+.diff-bar {
+  border-radius: 0 0 10px 10px;
+  border-top: none;
+  margin-top: 0;
+  margin-bottom: 8px;
+  padding: 3px;
+}
+.btn-mode { padding: 5px 11px; font-size: 0.73em; }
+.btn-diff  { padding: 5px 10px; font-size: 0.75em; }
+
+.controls        { gap: 6px; margin-bottom: 5px; }
+.controls-solver { margin-top: -3px; margin-bottom: 7px; }
+.btn-new, .btn-hint, .btn-validate { padding: 7px 13px; font-size: 0.84em; }
+.btn-solver { padding: 4px 11px; font-size: 0.73em; }
+
+.score          { font-size: 0.98em; margin-bottom: 2px; }
+.potential-score { margin-bottom: 1px; }
+.personal-best  { margin-bottom: 1px; }
+.game-stats     { font-size: 0.68em; margin-bottom: 4px; }
+.grid-wrap      { margin-top: 6px; }
+
+@media (max-width: 620px) {
+  body          { padding-top: 10px; }
+  h1            { font-size: 1.42em; }
+  .header-wrap  { gap: 8px; }
+  .title-flag   { font-size: 1.15em; }
+  .subtitle     { font-size: 0.7em; margin-bottom: 6px; }
+  .btn-mode     { padding: 4px 9px; font-size: 0.69em; }
+  .btn-diff     { padding: 4px 8px; font-size: 0.69em; }
+  .controls     { gap: 5px; margin-bottom: 4px; }
+  .controls-solver { margin-bottom: 5px; }
+  .btn-new, .btn-hint { padding: 6px 10px; font-size: 0.78em; }
+  .game-stats   { margin-bottom: 3px; }
+  .grid-wrap    { margin-top: 4px; }
+}
+
 /* ── Theme toggle ─────────────────────────────────────────── */
 .theme-toggle {
   position: fixed; top: 14px; right: 14px; z-index: 100;
@@ -995,7 +1046,8 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
 }
 
 /* Diff bar */
-[data-theme="light"] .diff-bar { background: var(--surface); border-color: var(--border-med); }
+[data-theme="light"] .mode-bar { background: var(--surface); border-color: var(--border-med); border-bottom-color: var(--border); }
+[data-theme="light"] .diff-bar { background: var(--surface); border-color: var(--border-med); border-top: none; }
 [data-theme="light"] .btn-diff { color: var(--text-3); }
 [data-theme="light"] .btn-diff:hover { background: rgba(0,0,0,0.05); color: var(--text-2); }
 [data-theme="light"] .btn-diff.active.facile    { background: #dcfce7; color: #15803d; }
@@ -1141,8 +1193,8 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
 <p class="subtitle">Trouvez un pays respectant la règle de sa ligne <strong>ET</strong> de sa colonne</p>
 
 <div class="mode-bar">
-  <button class="btn-mode active" id="btn-mode-classic" onclick="setMode('classic')">🗺️ Classique (3×3)</button>
-  <button class="btn-mode"        id="btn-mode-quick"   onclick="setMode('quick')">⚡ Rapide (2×2)</button>
+  <button class="btn-mode active" id="btn-mode-classic" onclick="setMode('classic')">🗺️ Classique</button>
+  <button class="btn-mode"        id="btn-mode-quick"   onclick="setMode('quick')">⚡ Rapide</button>
 </div>
 <div class="diff-bar">
   <label>Difficulté :</label>
@@ -1155,7 +1207,7 @@ button:disabled { opacity: 0.28; cursor: not-allowed; transform: none !important
 </div>
 <div class="controls">
   <button class="btn-new"  onclick="newGame()">&#128260; Nouvelle grille</button>
-  <button class="btn-hint" onclick="openZoo()">&#127758; Liste des pays</button>
+  <button class="btn-hint" onclick="openZoo()">&#127758; Pays</button>
   <button class="btn-hint" onclick="openLeaderboard()">&#127942; Classement</button>
 </div>
 <div class="controls controls-solver">
